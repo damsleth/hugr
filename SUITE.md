@@ -77,7 +77,7 @@ YAAMS uses `owa-piggy` directly for the Teams and calendar adapters.
        ▼                               ▼                          ▼
   fused verbs                    direct tool verbs              surfaces
   ask · find · inbox             query · ingest · mail          TUI · MCP
-  remember                       calendar · ledger
+  remember                       calendar · ledger             web
        │                 │                      │                 │
        ├─ iMessage       │                      ├─ owa-cal        │
        ├─ Apple Mail     │                      ├─ owa-mail       │
@@ -95,6 +95,11 @@ tool verbs: it queries YAAMS/Tier 2 and opportunistically asks live
 M365 buckets when the cache may be stale. Every fused result includes
 `sources[]`, `citations[]`, and `warnings[]` so higher-level surfaces
 can show partial results without guessing which child tool failed.
+
+The optional web surface is FastAPI-rendered HTML with JSON variants
+for every route. It calls `mnem.api` directly, never the router or
+passthrough layer, so the CLI, TUI, web UI, and MCP tools share the
+same fused result documents.
 
 ## Install model
 

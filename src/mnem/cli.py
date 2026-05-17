@@ -439,6 +439,16 @@ def tui_cmd() -> None:
   run()
 
 
+@cli.command("web")
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=7777, show_default=True, type=int)
+@click.option("--public", "public", is_flag=True, default=False, help="Allow non-loopback bind with MNEM_WEB_TOKEN.")
+def web_cmd(host: str, port: int, public: bool) -> None:
+  """Launch the FastAPI web surface (requires [web] extra)."""
+  from mnem.commands.web import launch
+  launch(host=host, port=port, public=public)
+
+
 @cli.command("mcp")
 @click.option(
   "--stdio",

@@ -68,6 +68,7 @@ mnem ask "what did we decide at the brand kickoff?"
 mnem find person nina
 mnem inbox                       # unread mail, today's events, loops, promotions
 mnem remember "Nina prefers early flights" --yes
+mnem web                         # local browser UI, requires [web] extra
 mnem query "what did we decide at the brand kickoff?"  # direct YAAMS passthrough
 mnem ingest                       # all configured sources, partial-success tolerant
 mnem promote review               # interactive: promote YAAMS gems to the ledger
@@ -98,6 +99,19 @@ Every JSON-capable command accepts `--json` (machine mode) and
 See [SUITE.md](SUITE.md) for the full data flow and architecture, and
 [CONVENTIONS.md](CONVENTIONS.md) for the CLI contract every tool in
 the suite conforms to.
+
+## Surfaces
+
+The CLI is always installed. Optional surfaces stay behind extras:
+
+```bash
+pipx install "mnem-suite[tui]"   # mnem tui
+pipx install "mnem-suite[web]"   # mnem web
+```
+
+`mnem web` binds to `127.0.0.1:7777` by default. Binding to a public
+interface requires `--public` and `MNEM_WEB_TOKEN`; put a real access
+proxy such as Cloudflare Access or tailscale in front for remote use.
 
 ## Skills
 

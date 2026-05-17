@@ -12,8 +12,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
 
-_TUI_ROOT = Path(__file__).parent.parent / "src" / "mnem" / "tui"
+
+_SRC_ROOT = Path(__file__).parent.parent / "src" / "mnem"
+_TUI_ROOT = _SRC_ROOT / "tui"
+_WEB_ROOT = _SRC_ROOT / "web"
 
 _FORBIDDEN_PREFIXES = (
   "mnem.router",
@@ -83,3 +87,19 @@ def test_tui_files_found() -> None:
   ]
   for path in expected:
     assert path.exists(), f"Expected TUI file missing: {path}"
+
+
+def test_web_does_not_import_router_or_passthrough() -> None:
+  if not _WEB_ROOT.exists():
+    pytest.skip("web surface not present")
+  violations: list[str] = []
+  for path in sorted(_WEB_ROOT.rglob("*.py")):
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    for name in _collect_imports(tree):
+      if name.startswith(_FORBIDDEN_PREFIXES):
+        violations.append(f"{path.relative_to(_SRC_ROOT.parent)}: imports {name!r}")
+  assert not violations, (
+    "web modules must not import mnem.router or mnem.commands.passthrough; "
+    "use mnem.api instead.\n" + "\n".join(violations)
+  )
