@@ -49,7 +49,7 @@ def test_passthrough_tools_have_args_array_schema():
   """Passthrough wrappers (args: list[str]) must have an args array property."""
   tools = build_tool_defs()
   # All tools except doctor and version are passthrough wrappers.
-  non_passthrough = {"mnem.doctor", "mnem.version"}
+  non_passthrough = {"mnem.doctor", "mnem.version", "mnem.ask", "mnem.find", "mnem.inbox", "mnem.remember"}
   for tool in tools:
     if tool.name in non_passthrough:
       continue
@@ -72,7 +72,7 @@ def test_passthrough_tools_have_args_array_schema():
 def test_no_arg_tools_have_empty_properties():
   """doctor() and version() take no args; their schemas must have no properties."""
   tools = build_tool_defs()
-  no_arg_tools = {"mnem.doctor", "mnem.version"}
+  no_arg_tools = {"mnem.doctor", "mnem.version", "mnem.inbox"}
   for tool in tools:
     if tool.name not in no_arg_tools:
       continue
@@ -101,6 +101,10 @@ def test_known_tool_names_present():
   expected = {
     "mnem.doctor",
     "mnem.version",
+    "mnem.ask",
+    "mnem.find",
+    "mnem.inbox",
+    "mnem.remember",
     "mnem.yaams.query",
     "mnem.ledger.query",
     "mnem.calendar",

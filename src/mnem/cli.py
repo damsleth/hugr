@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import os
 import sys
+import json
 from pathlib import Path
 
 import click
@@ -57,6 +58,10 @@ def _yaams_config_path() -> Path:
 
 
 _VERBS_NEEDING_CONFIG = {
+  ("ask",),
+  ("find",),
+  ("inbox",),
+  ("remember",),
   ("query",),
   ("ingest",),
   ("promote", "review"),
@@ -79,6 +84,10 @@ def _explicit_config_in_args(args: tuple[str, ...]) -> bool:
 # previously caused users to skip past the helpful "Run: mnem init"
 # hint and crash on the missing yaams config one layer down.
 _BYPASS_ENV_BY_VERB: dict[tuple[str, ...], tuple[str, ...]] = {
+  ("ask",): ("YAAMS_CONFIG", "MNEM_CONFIG"),
+  ("find",): ("YAAMS_CONFIG", "MNEM_CONFIG"),
+  ("inbox",): ("YAAMS_CONFIG", "MNEM_CONFIG"),
+  ("remember",): ("YAAMS_CONFIG", "MNEM_CONFIG"),
   ("query",): ("YAAMS_CONFIG", "MNEM_CONFIG"),
   ("ingest",): ("YAAMS_CONFIG", "MNEM_CONFIG"),
   ("promote", "review"): ("YAAMS_CONFIG", "MNEM_CONFIG"),
@@ -184,6 +193,135 @@ def doctor_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
   del pretty
   from mnem.commands.doctor import run
   ctx.exit(run(as_json or ctx.obj.get("json", False)))
+
+
+def _emit_json_doc(doc: dict) -> None:
+  click.echo(json.dumps(doc, ensure_ascii=False))
+
+
+def _emit_fused_pretty(doc: dict) -> None:
+  command = doc.get("command", "mnem")
+  click.echo(f"mnem {command}")
+  if doc.get("query"):
+    click.echo(f"query: {doc['query']}")
+  if doc.get("kind"):
+    click.echo(f"kind: {doc['kind']}")
+
+  source_items = doc.get("sources") or []
+  if doc.get("source"):
+    source_items = [doc["source"]]
+  if source_items:
+    click.echo("\nsources:")
+    for item in source_items:
+      mark = "+" if item.get("ok") else "x"
+      label = item.get("source", "?")
+      cmd = item.get("command", "")
+      click.echo(f"  {mark} {label} {cmd}".rstrip())
+
+  citations = doc.get("citations") or []
+  if citations:
+    click.echo("\ncitations:")
+    for cite in citations:
+      click.echo(f"  - {cite.get('source')}: {cite.get('ref')}")
+
+  warnings = doc.get("warnings") or []
+  if warnings:
+    click.echo("\nwarnings:")
+    for warning in warnings:
+      click.echo(f"  - {warning.get('source')}: {warning.get('message')}")
+
+
+def _question_from_parts(parts: tuple[str, ...]) -> str:
+  return " ".join(parts).strip()
+
+
+@cli.command("ask")
+@click.argument("question", nargs=-1, required=True)
+@click.option("-k", "--limit", default=10, show_default=True, type=int)
+@click.option("--no-live", is_flag=True, default=False, help="Skip live M365 buckets.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def ask_cmd(ctx: click.Context, question: tuple[str, ...], limit: int, no_live: bool, as_json: bool, pretty: bool) -> None:
+  hint = _ensure_config(("ask",))
+  if hint is not None:
+    ctx.exit(hint)
+  from mnem import api
+  doc = api.ask(_question_from_parts(question), k=limit, live=not no_live)
+  if pretty and not (as_json or ctx.obj.get("json", False)):
+    _emit_fused_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
+@cli.command("find")
+@click.argument("kind")
+@click.argument("query", nargs=-1, required=True)
+@click.option("-k", "--limit", default=10, show_default=True, type=int)
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def find_cmd(ctx: click.Context, kind: str, query: tuple[str, ...], limit: int, as_json: bool, pretty: bool) -> None:
+  hint = _ensure_config(("find",))
+  if hint is not None:
+    ctx.exit(hint)
+  from mnem import api
+  doc = api.find(kind, _question_from_parts(query), k=limit)
+  if pretty and not (as_json or ctx.obj.get("json", False)):
+    _emit_fused_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
+@cli.command("inbox")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def inbox_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  hint = _ensure_config(("inbox",))
+  if hint is not None:
+    ctx.exit(hint)
+  from mnem import api
+  doc = api.inbox()
+  if pretty and not (as_json or ctx.obj.get("json", False)):
+    _emit_fused_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
+@cli.command("remember")
+@click.argument("fact", nargs=-1, required=True)
+@click.option("--type", "note_type", default="fact", show_default=True)
+@click.option("--link", "links", multiple=True)
+@click.option("--yes", is_flag=True, default=False, help="Confirm ledger-side action when supported.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def remember_cmd(
+  ctx: click.Context,
+  fact: tuple[str, ...],
+  note_type: str,
+  links: tuple[str, ...],
+  yes: bool,
+  as_json: bool,
+  pretty: bool,
+) -> None:
+  hint = _ensure_config(("remember",))
+  if hint is not None:
+    ctx.exit(hint)
+  from mnem import api
+  doc = api.remember(_question_from_parts(fact), note_type=note_type, links=links, yes=yes)
+  if pretty and not (as_json or ctx.obj.get("json", False)):
+    if doc.get("ok"):
+      click.echo("remembered")
+    else:
+      click.echo(f"remember failed: {doc.get('error', {}).get('message', 'unknown error')}", err=True)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(int(doc.get("exit_code") or (0 if doc.get("ok") else 1)))
 
 
 @cli.command("init")

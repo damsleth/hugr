@@ -47,6 +47,25 @@ async def run() -> None:
       sig = inspect.signature(func)
       if "args" in sig.parameters:
         result = func(arguments.get("args", []))
+      elif fn_name == "ask":
+        result = func(
+          arguments["question"],
+          k=arguments.get("k", 10),
+          live=arguments.get("live", True),
+        )
+      elif fn_name == "find":
+        result = func(
+          arguments["kind"],
+          arguments["query"],
+          k=arguments.get("k", 10),
+        )
+      elif fn_name == "remember":
+        result = func(
+          arguments["fact_text"],
+          note_type=arguments.get("note_type", "fact"),
+          links=arguments.get("links", []),
+          yes=arguments.get("yes", False),
+        )
       else:
         result = func()
     except Exception as exc:

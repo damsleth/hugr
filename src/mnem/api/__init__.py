@@ -21,8 +21,7 @@ Passthrough wrappers map one-to-one to rows in ``mnem.router.TABLE``
 that have ``interactive=False``.  Interactive verbs (promote review,
 auth setup) are not exposed here - they require a real TTY.
 
-Stub stubs for plan-01.2+ verbs (ask, find, inbox, send, schedule,
-remember) are intentionally absent; they land in later rollout phases.
+Plan-01 fused verbs return structured Python dictionaries directly.
 """
 
 from __future__ import annotations
@@ -30,6 +29,10 @@ from __future__ import annotations
 # Re-export the two in-process functions ---------------------------------
 
 from mnem.api.doctor import doctor as doctor
+from mnem.api.fused import ask as ask
+from mnem.api.fused import find as find
+from mnem.api.fused import inbox as inbox
+from mnem.api.fused import remember as remember
 from mnem.api.version import version as version
 
 # Passthrough wrappers ---------------------------------------------------
@@ -199,6 +202,10 @@ def owa_drive(args: list[str]) -> tuple[int, bytes]:
 __all__ = [
     "doctor",
     "version",
+    "ask",
+    "find",
+    "inbox",
+    "remember",
     "yaams_query",
     "yaams_ingest",
     "yaams_promote_generate",

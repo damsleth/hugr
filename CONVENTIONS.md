@@ -252,6 +252,25 @@ Every JSON-capable binary in the suite MUST expose:
   follows the standard table (0 ok, 1 user-fixable, 2 transient, 3
   auth). `mnem doctor` aggregates these documents.
 
+## mnem fused result documents
+
+`mnem` adds fused verbs above the direct tool passthroughs. These
+commands are data-class unless explicitly documented as action-class:
+
+- `mnem ask "<question>"` returns a result document with `sources[]`,
+  `citations[]`, and `warnings[]`.
+- `mnem find <kind> <query>` returns a typed `source` result for the
+  selected backing tool.
+- `mnem inbox` returns `sources[]` for unread mail, today's calendar
+  events, ledger loops, and YAAMS promotion candidates.
+- `mnem remember "<fact>"` is action-class and returns an action
+  envelope with `ok`, `exit_code`, `error`, and the child ledger result.
+
+For fused data-class commands, source failures are reported in
+`warnings[]` and the successful source payloads remain available.
+This mirrors the suite-wide partial-success stance while keeping the
+top-level document parseable for TUI, web, and MCP surfaces.
+
 ### Doctor JSON schema
 
 ```json

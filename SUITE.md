@@ -72,10 +72,12 @@ YAAMS uses `owa-piggy` directly for the Teams and calendar adapters.
 ```
                                     mnem
                                      │
-       ┌─────────────────┬───────────┴──────────┬─────────────────┐
-       │                 │                      │                 │
-       ▼                 ▼                      ▼                 ▼
-   yaams ingest    yaams query          owa-* read/write       ledger
+       ┌───────────────────────────────┬──────────────────────────┐
+       │                               │                          │
+       ▼                               ▼                          ▼
+  fused verbs                    direct tool verbs              surfaces
+  ask · find · inbox             query · ingest · mail          TUI · MCP
+  remember                       calendar · ledger
        │                 │                      │                 │
        ├─ iMessage       │                      ├─ owa-cal        │
        ├─ Apple Mail     │                      ├─ owa-mail       │
@@ -88,8 +90,11 @@ YAAMS uses `owa-piggy` directly for the Teams and calendar adapters.
 ```
 
 Ingestion is one-way (sources → YAAMS). Promotion is one-way (YAAMS
-→ ledger, gated by `promote review`). Queries fuse both tiers and
-cite back to the source items.
+→ ledger, gated by `promote review`). `mnem ask` sits above the direct
+tool verbs: it queries YAAMS/Tier 2 and opportunistically asks live
+M365 buckets when the cache may be stale. Every fused result includes
+`sources[]`, `citations[]`, and `warnings[]` so higher-level surfaces
+can show partial results without guessing which child tool failed.
 
 ## Install model
 

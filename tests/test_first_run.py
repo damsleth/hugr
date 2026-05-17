@@ -15,6 +15,10 @@ from mnem.cli import _VERBS_NEEDING_CONFIG, _ensure_config, cli
 
 
 def test_verbs_needing_config_includes_phase3a_verbs():
+  assert ("ask",) in _VERBS_NEEDING_CONFIG
+  assert ("find",) in _VERBS_NEEDING_CONFIG
+  assert ("inbox",) in _VERBS_NEEDING_CONFIG
+  assert ("remember",) in _VERBS_NEEDING_CONFIG
   assert ("query",) in _VERBS_NEEDING_CONFIG
   assert ("ingest",) in _VERBS_NEEDING_CONFIG
   assert ("promote", "review") in _VERBS_NEEDING_CONFIG

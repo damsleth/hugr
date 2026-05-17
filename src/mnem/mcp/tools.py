@@ -16,11 +16,14 @@ from typing import Any
 # Name mapping: api function name -> MCP tool name
 # ---------------------------------------------------------------------------
 # Only functions actually present in mnem.api.__all__ are mapped.
-# Future verbs (ask, find, send, …) will be added when their api functions land.
 
 NAME_MAP: dict[str, str] = {
   "doctor": "mnem.doctor",
   "version": "mnem.version",
+  "ask": "mnem.ask",
+  "find": "mnem.find",
+  "inbox": "mnem.inbox",
+  "remember": "mnem.remember",
   "yaams_query": "mnem.yaams.query",
   "yaams_ingest": "mnem.yaams.ingest",
   "yaams_promote_generate": "mnem.yaams.promote.generate",
@@ -61,6 +64,37 @@ _NO_ARG_SCHEMA: dict[str, Any] = {
   "required": [],
 }
 
+_FUSED_SCHEMAS: dict[str, dict[str, Any]] = {
+  "ask": {
+    "type": "object",
+    "properties": {
+      "question": {"type": "string"},
+      "k": {"type": "integer", "default": 10},
+      "live": {"type": "boolean", "default": True},
+    },
+    "required": ["question"],
+  },
+  "find": {
+    "type": "object",
+    "properties": {
+      "kind": {"type": "string"},
+      "query": {"type": "string"},
+      "k": {"type": "integer", "default": 10},
+    },
+    "required": ["kind", "query"],
+  },
+  "remember": {
+    "type": "object",
+    "properties": {
+      "fact_text": {"type": "string"},
+      "note_type": {"type": "string", "default": "fact"},
+      "links": {"type": "array", "items": {"type": "string"}},
+      "yes": {"type": "boolean", "default": False},
+    },
+    "required": ["fact_text"],
+  },
+}
+
 
 def _build_schema(func: Any) -> dict[str, Any]:
   """Return a JSON Schema dict for the given api function.
@@ -74,6 +108,8 @@ def _build_schema(func: Any) -> dict[str, Any]:
     for name, p in sig.parameters.items()
     if name != "self"
   }
+  if func.__name__ in _FUSED_SCHEMAS:
+    return _FUSED_SCHEMAS[func.__name__]
   if not params:
     return _NO_ARG_SCHEMA
   # Passthrough wrappers declare a single ``args`` parameter typed list[str].

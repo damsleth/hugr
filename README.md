@@ -60,7 +60,11 @@ mnem doctor         # health check across every tool
 ## What can it do
 
 ```bash
-mnem query "what did we decide at the brand kickoff?"
+mnem ask "what did we decide at the brand kickoff?"
+mnem find person nina
+mnem inbox                       # unread mail, today's events, loops, promotions
+mnem remember "Nina prefers early flights" --yes
+mnem query "what did we decide at the brand kickoff?"  # direct YAAMS passthrough
 mnem ingest                       # all configured sources, partial-success tolerant
 mnem promote review               # interactive: promote YAAMS gems to the ledger
 mnem mail send --to ...           # owa-mail wrapper
@@ -85,7 +89,7 @@ Every JSON-capable command accepts `--json` (machine mode) and
    what it doesn't.
 3. `mnem ingest` - first run downloads embedding models (~2 GB) with
    a prompt before any download.
-4. `mnem query "..."` - ask the suite anything.
+4. `mnem ask "..."` - ask the suite anything.
 
 See [SUITE.md](SUITE.md) for the full data flow and architecture, and
 [CONVENTIONS.md](CONVENTIONS.md) for the CLI contract every tool in

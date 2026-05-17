@@ -16,6 +16,10 @@ import mnem.api as api
 _EXPECTED_SYMBOLS = [
     "doctor",
     "version",
+    "ask",
+    "find",
+    "inbox",
+    "remember",
     "yaams_query",
     "yaams_ingest",
     "yaams_promote_generate",
@@ -67,7 +71,8 @@ def test_all_in_dunder_all():
 
 def test_passthrough_wrappers_accept_list_arg():
     """Passthrough wrappers take a single list[str] positional argument."""
-    passthrough_names = [n for n in _EXPECTED_SYMBOLS if n not in ("doctor", "version")]
+    non_passthrough = {"doctor", "version", "ask", "find", "inbox", "remember"}
+    passthrough_names = [n for n in _EXPECTED_SYMBOLS if n not in non_passthrough]
     for name in passthrough_names:
         obj = getattr(api, name)
         sig = inspect.signature(obj)
