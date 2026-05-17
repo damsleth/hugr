@@ -12,7 +12,7 @@ import sys
 from typing import TextIO
 
 from mnem import __version__
-from mnem.config import resolved_default_owa_profile
+from mnem.config import master_config_path, resolved_default_owa_profile
 from mnem.failure import run_subprocess
 
 
@@ -117,7 +117,28 @@ def _m365_profiles() -> list[dict]:
   return profiles
 
 
-def _aggregate() -> dict:
+def _apply_fixes(*, yes: bool) -> list[dict]:
+  fixes: list[dict] = []
+  master = master_config_path()
+  if not master.is_file():
+    item = {
+      "id": "missing_mnem_config",
+      "description": f"Create {master} with `mnem init --quick`",
+      "safe": True,
+      "applied": False,
+    }
+    if yes:
+      from mnem.commands.init import quick_bootstrap_doc
+      result = quick_bootstrap_doc()
+      item["applied"] = bool(result.get("ok"))
+      item["result"] = result
+    else:
+      item["hint"] = "re-run with `mnem doctor --fix --yes` to apply"
+    fixes.append(item)
+  return fixes
+
+
+def _aggregate(*, fix: bool = False, yes: bool = False) -> dict:
   components = []
   worst_exit = 0
   for binary in _FANOUT:
@@ -138,16 +159,19 @@ def _aggregate() -> dict:
     worst_exit = max(worst_exit, sub_exit)
 
   m365 = _m365_profiles()
-  return {
+  doc = {
     "tool": "mnem",
     "version": __version__,
     "components": components,
     "m365_profiles": m365,
     "_exit_code": worst_exit,
   }
+  if fix:
+    doc["fixes_applied"] = _apply_fixes(yes=yes)
+  return doc
 
 
-def build_report() -> tuple[dict, int]:
+def build_report(*, fix: bool = False, yes: bool = False) -> tuple[dict, int]:
   """Return (report_dict, exit_code) without writing to stdout.
 
   The dict is the same shape that ``run(as_json=True)`` serialises,
@@ -155,14 +179,14 @@ def build_report() -> tuple[dict, int]:
   want the dict can ignore the exit code; callers that drive process
   exit (the CLI, the API layer) use the int.
   """
-  doc = _aggregate()
+  doc = _aggregate(fix=fix, yes=yes)
   exit_code = int(doc.pop("_exit_code", 0))
   return doc, exit_code
 
 
-def run(as_json: bool, stream: TextIO | None = None) -> int:
+def run(as_json: bool, stream: TextIO | None = None, *, fix: bool = False, yes: bool = False) -> int:
   out: TextIO = stream if stream is not None else sys.stdout
-  doc, exit_code = build_report()
+  doc, exit_code = build_report(fix=fix, yes=yes)
   if as_json:
     out.write(json.dumps(doc, ensure_ascii=False) + "\n")
     out.flush()
@@ -200,6 +224,17 @@ def run(as_json: bool, stream: TextIO | None = None) -> int:
       default_tag = " [default]" if p.get("is_default") else ""
       expires = p.get("token_expires_at") or "unknown"
       out.write(f"  {p['name']}{default_tag}  expires: {expires}\n")
+
+  if fix:
+    out.write("\nFixes:\n")
+    fixes = doc.get("fixes_applied") or []
+    if not fixes:
+      out.write("  no applicable fixes\n")
+    for item in fixes:
+      mark = "+" if item.get("applied") else "."
+      out.write(f"  {mark} {item['id']}: {item['description']}\n")
+      if item.get("hint"):
+        out.write(f"    hint: {item['hint']}\n")
 
   out.flush()
   return exit_code

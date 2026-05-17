@@ -31,8 +31,9 @@ unchanged; the user is prompted on conflict.
 
 from __future__ import annotations
 
-import subprocess
 import json
+import shutil
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -283,7 +284,7 @@ def _resolve_owa_piggy_config() -> Path | None:
   return None
 
 
-def _quick_path(*, as_json: bool, force: bool = False, with_models: bool = False) -> int:
+def quick_bootstrap_doc(*, force: bool = False, with_models: bool = False) -> dict[str, Any]:
   started = time.monotonic()
   probes = run_all_cached()
   config_dir().mkdir(parents=True, exist_ok=True)
@@ -331,7 +332,7 @@ def _quick_path(*, as_json: bool, force: bool = False, with_models: bool = False
     master.write_text(master_body, encoding="utf-8")
     writes.append({"path": str(master), "kind": "mnem_master_config"})
 
-  yaams = _which_or_warn("yaams") if not as_json else __import__("shutil").which("yaams")
+  yaams = shutil.which("yaams")
   if yaams:
     for label, argv in (
       ("yaams setup", [yaams, "setup", "--config", str(yaams_cfg)]),
@@ -372,6 +373,12 @@ def _quick_path(*, as_json: bool, force: bool = False, with_models: bool = False
     ],
   }
 
+  return doc
+
+
+def _quick_path(*, as_json: bool, force: bool = False, with_models: bool = False) -> int:
+  doc = quick_bootstrap_doc(force=force, with_models=with_models)
+
   if as_json:
     click.echo(json.dumps(doc, ensure_ascii=False))
   else:
@@ -386,7 +393,7 @@ def _quick_path(*, as_json: bool, force: bool = False, with_models: bool = False
     click.echo("\nNext steps:")
     for cmd in doc["next_steps"]:
       click.echo(f"  $ {cmd}")
-  return 0 if ok else 5
+  return 0 if doc.get("ok") else 5
 
 
 def run(

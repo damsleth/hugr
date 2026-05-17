@@ -268,6 +268,9 @@ commands are data-class unless explicitly documented as action-class:
 - `mnem init --quick` is action-class and returns the standard action
   envelope under `--json`; bare `mnem init` remains interactive and
   rejects `--json`.
+- `mnem doctor --fix --yes` can apply bounded self-healing fixes and
+  reports them in `fixes_applied[]`. Without `--yes`, fixes are listed
+  with hints but not applied.
 
 For fused data-class commands, source failures are reported in
 `warnings[]` and the successful source payloads remain available.

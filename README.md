@@ -54,6 +54,7 @@ mnem init --quick   # non-interactive bootstrap for the common path
 mnem init           # interactive wizard when you want prompts
 mnem hello          # one-screen tour of the verbs
 mnem doctor         # health check across every tool
+mnem doctor --fix --yes # apply bounded self-healing fixes
 ```
 
 `mnem init --quick` writes mnem-owned config, adopts existing tool

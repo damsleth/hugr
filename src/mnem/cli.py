@@ -188,11 +188,13 @@ def version_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
 @cli.command("doctor")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
 @click.option("--pretty", is_flag=True, default=False, help="Human rendering (default).")
+@click.option("--fix", is_flag=True, default=False, help="Apply bounded self-healing fixes.")
+@click.option("--yes", is_flag=True, default=False, help="Apply doctor fixes without per-item prompts.")
 @click.pass_context
-def doctor_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+def doctor_cmd(ctx: click.Context, as_json: bool, pretty: bool, fix: bool, yes: bool) -> None:
   del pretty
   from mnem.commands.doctor import run
-  ctx.exit(run(as_json or ctx.obj.get("json", False)))
+  ctx.exit(run(as_json or ctx.obj.get("json", False), fix=fix, yes=yes))
 
 
 def _emit_json_doc(doc: dict) -> None:
