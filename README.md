@@ -50,12 +50,16 @@ pipx install mnem-suite
 Then:
 
 ```bash
-mnem init           # detect sources, write config, run a dry-run
+mnem init --quick   # non-interactive bootstrap for the common path
+mnem init           # interactive wizard when you want prompts
 mnem hello          # one-screen tour of the verbs
 mnem doctor         # health check across every tool
 ```
 
-`mnem init` is idempotent and never edits your dotfiles.
+`mnem init --quick` writes mnem-owned config, adopts existing tool
+configs in place, and skips heavyweight model downloads unless you
+pass `--with-models`. `mnem init` is idempotent and never edits your
+existing tool dotfiles.
 
 ## What can it do
 
@@ -83,10 +87,10 @@ Every JSON-capable command accepts `--json` (machine mode) and
 ## First day
 
 1. `brew install damsleth/tap/mnem`
-2. `mnem init` - the wizard probes for iMessage, Apple Mail, Signal,
+2. `mnem init --quick` - probes for iMessage, Apple Mail, Signal,
    GitHub, owa-piggy, Obsidian, and an existing cognitive-ledger. It
-   enables what it finds and writes `enabled: false` with a hint for
-   what it doesn't.
+   enables what it finds, adopts existing configs byte-for-byte, and
+   prints hints for what it cannot bootstrap.
 3. `mnem ingest` - first run downloads embedding models (~2 GB) with
    a prompt before any download.
 4. `mnem ask "..."` - ask the suite anything.

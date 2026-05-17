@@ -14,9 +14,20 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import json
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from mnem.config import data_root_default
+
+
+DETECTION_CACHE_TTL_SECONDS = 24 * 60 * 60
+
+
+def detection_cache_path() -> Path:
+  return data_root_default() / "cache" / "detection.json"
 
 
 @dataclass
@@ -38,6 +49,16 @@ class ProbeResult:
     if self.extras:
       out["extras"] = dict(self.extras)
     return out
+
+  @classmethod
+  def from_dict(cls, data: dict[str, Any]) -> "ProbeResult":
+    return cls(
+      name=str(data.get("name") or "unknown"),
+      enabled=bool(data.get("enabled")),
+      reason=str(data.get("reason") or ""),
+      hint=data.get("hint"),
+      extras=dict(data.get("extras") or {}),
+    )
 
 
 def probe_imessage() -> ProbeResult:
@@ -323,4 +344,59 @@ def run_all() -> list[ProbeResult]:
         enabled=False,
         reason=f"probe crashed: {exc}",
       ))
+  return results
+
+
+def is_fresh(doc: dict[str, Any], *, now: datetime | None = None) -> bool:
+  """Return True when a detection cache document is still inside TTL."""
+  generated = doc.get("generated_at")
+  ttl = int(doc.get("ttl_seconds") or DETECTION_CACHE_TTL_SECONDS)
+  if not isinstance(generated, str):
+    return False
+  try:
+    generated_at = datetime.fromisoformat(generated.replace("Z", "+00:00"))
+  except ValueError:
+    return False
+  current = now or datetime.now(timezone.utc)
+  return (current - generated_at).total_seconds() < ttl
+
+
+def save_cached(results: list[ProbeResult], *, path: Path | None = None) -> Path:
+  """Write a source-detection cache and return its path."""
+  target = path or detection_cache_path()
+  target.parent.mkdir(parents=True, exist_ok=True)
+  doc = {
+    "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "ttl_seconds": DETECTION_CACHE_TTL_SECONDS,
+    "report": [r.to_dict() for r in results],
+  }
+  target.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+  return target
+
+
+def load_cached(*, path: Path | None = None, now: datetime | None = None) -> list[ProbeResult] | None:
+  """Load a fresh source-detection cache, or return None."""
+  target = path or detection_cache_path()
+  if not target.is_file():
+    return None
+  try:
+    doc = json.loads(target.read_text(encoding="utf-8"))
+  except (OSError, json.JSONDecodeError):
+    return None
+  if not isinstance(doc, dict) or not is_fresh(doc, now=now):
+    return None
+  report = doc.get("report")
+  if not isinstance(report, list):
+    return None
+  return [ProbeResult.from_dict(item) for item in report if isinstance(item, dict)]
+
+
+def run_all_cached(*, rescan: bool = False) -> list[ProbeResult]:
+  """Run probes using the 24h cache unless *rescan* is true."""
+  if not rescan:
+    cached = load_cached()
+    if cached is not None:
+      return cached
+  results = run_all()
+  save_cached(results)
   return results

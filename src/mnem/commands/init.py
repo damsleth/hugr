@@ -32,7 +32,10 @@ unchanged; the user is prompted on conflict.
 from __future__ import annotations
 
 import subprocess
+import json
+import time
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -45,7 +48,7 @@ from mnem.config import (
   master_config_path,
   render_master,
 )
-from mnem.sources import ProbeResult, run_all
+from mnem.sources import ProbeResult, run_all, run_all_cached
 
 
 def _existing_yaams_values(probes: list[ProbeResult]) -> dict:
@@ -210,6 +213,30 @@ def _run_step(label: str, argv: list[str]) -> int:
   return result.returncode
 
 
+def _run_quick_step(label: str, argv: list[str]) -> dict[str, Any]:
+  started = time.monotonic()
+  try:
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+  except FileNotFoundError:
+    return {
+      "label": label,
+      "argv": argv,
+      "ok": False,
+      "exit_code": 127,
+      "duration_ms": int((time.monotonic() - started) * 1000),
+      "stderr": "binary not on PATH",
+    }
+  return {
+    "label": label,
+    "argv": argv,
+    "ok": result.returncode == 0,
+    "exit_code": result.returncode,
+    "duration_ms": int((time.monotonic() - started) * 1000),
+    "stdout": result.stdout,
+    "stderr": result.stderr,
+  }
+
+
 def _resolve_yaams_config(probes: list[ProbeResult], *, force: bool) -> Path | None:
   """Decide which yaams config path to record in the master config.
 
@@ -256,11 +283,126 @@ def _resolve_owa_piggy_config() -> Path | None:
   return None
 
 
-def run(as_json: bool, *, force: bool = False) -> int:
+def _quick_path(*, as_json: bool, force: bool = False, with_models: bool = False) -> int:
+  started = time.monotonic()
+  probes = run_all_cached()
+  config_dir().mkdir(parents=True, exist_ok=True)
+  data = data_root_default()
+  data.mkdir(parents=True, exist_ok=True)
+
+  writes: list[dict[str, Any]] = []
+  adopted: dict[str, str] = {}
+  hints: list[str] = []
+  steps: list[dict[str, Any]] = []
+
+  yaams_cfg = canonical_yaams_config()
+  if yaams_cfg.is_file():
+    adopted["yaams_config"] = str(yaams_cfg)
+  else:
+    yaams_cfg.parent.mkdir(parents=True, exist_ok=True)
+    body = _build_yaams_config(probes)
+    yaams_cfg.write_text(body, encoding="utf-8")
+    writes.append({"path": str(yaams_cfg), "kind": "yaams_config"})
+
+  ledger_cfg = canonical_ledger_config()
+  ledger_path: Path | None = ledger_cfg if ledger_cfg.is_file() else None
+  if ledger_path is not None:
+    adopted["ledger_config"] = str(ledger_path)
+  else:
+    hints.append("ledger: run `ledger init`")
+
+  owa_cfg = canonical_owa_piggy_config()
+  owa_path: Path | None = owa_cfg if owa_cfg.is_file() else None
+  if owa_path is not None:
+    adopted["owa_piggy_config"] = str(owa_path)
+  else:
+    hints.append('auth: run "mnem auth setup"')
+
+  master = master_config_path()
+  master_body = render_master(
+    version=_mnem_version(),
+    data_root=data,
+    yaams_config=yaams_cfg,
+    ledger_config=ledger_path,
+    owa_piggy_config=owa_path,
+  )
+  if force or not master.is_file() or master.read_text(encoding="utf-8") != master_body:
+    master.parent.mkdir(parents=True, exist_ok=True)
+    master.write_text(master_body, encoding="utf-8")
+    writes.append({"path": str(master), "kind": "mnem_master_config"})
+
+  yaams = _which_or_warn("yaams") if not as_json else __import__("shutil").which("yaams")
+  if yaams:
+    for label, argv in (
+      ("yaams setup", [yaams, "setup", "--config", str(yaams_cfg)]),
+      ("yaams init-db", [yaams, "init-db", "--config", str(yaams_cfg)]),
+      ("yaams ingest --dry-run", [yaams, "ingest", "--dry-run", "--config", str(yaams_cfg)]),
+    ):
+      steps.append(_run_quick_step(label, argv))
+  else:
+    hints.append("yaams: not on PATH; skipped setup/init-db/dry-run")
+
+  if not with_models:
+    hints.append("models: skipped; pass `--with-models` for optional heavyweight setup")
+
+  ok = all(step.get("ok") for step in steps) if steps else True
+  doc = {
+    "tool": "mnem",
+    "version": _mnem_version(),
+    "command": "init --quick",
+    "ok": ok,
+    "duration_ms": int((time.monotonic() - started) * 1000),
+    "stats": {
+      "probes": len(probes),
+      "writes": writes,
+      "adopted": adopted,
+      "steps": steps,
+      "with_models": with_models,
+    },
+    "warnings": hints,
+    "error": None if ok else {
+      "code": "bootstrap_step_failed",
+      "message": "one or more quick bootstrap steps failed",
+      "hint": "Inspect stats.steps for the failing command.",
+    },
+    "next_steps": [
+      'mnem ask "what did we decide about ..."',
+      "mnem inbox",
+      "mnem auth setup",
+    ],
+  }
+
+  if as_json:
+    click.echo(json.dumps(doc, ensure_ascii=False))
+  else:
+    click.echo("mnem init --quick")
+    for item in writes:
+      click.echo(f"  wrote {item['path']}")
+    for key, path in adopted.items():
+      click.echo(f"  adopted {key}: {path}")
+    for step in steps:
+      mark = "+" if step["ok"] else "x"
+      click.echo(f"  {mark} {step['label']} (exit {step['exit_code']})")
+    click.echo("\nNext steps:")
+    for cmd in doc["next_steps"]:
+      click.echo(f"  $ {cmd}")
+  return 0 if ok else 5
+
+
+def run(
+  as_json: bool,
+  *,
+  force: bool = False,
+  quick: bool = False,
+  with_models: bool = False,
+) -> int:
+  if quick:
+    return _quick_path(as_json=as_json, force=force, with_models=with_models)
+
   if as_json:
     click.echo(
       "mnem init is an interactive command; --json is rejected. "
-      "Use `mnem doctor --json` to inspect suite state instead.",
+      "Use `mnem init --quick --json` for headless bootstrap.",
       err=True,
     )
     return 1

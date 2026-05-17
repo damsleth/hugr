@@ -7,12 +7,15 @@ Probes must:
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from mnem.sources import (
   ProbeResult,
+  is_fresh,
+  load_cached,
   probe_apple_mail,
   probe_cognitive_ledger,
   probe_github,
@@ -21,6 +24,8 @@ from mnem.sources import (
   probe_owa_piggy,
   probe_signal,
   run_all,
+  run_all_cached,
+  save_cached,
 )
 
 
@@ -125,3 +130,55 @@ def test_obsidian_probe_disabled_when_no_vault(monkeypatch, tmp_path: Path):
   monkeypatch.setattr(Path, "home", lambda: tmp_path)
   r = probe_obsidian()
   assert r.enabled is False
+
+
+# --- Detection cache --------------------------------------------------------
+
+def test_detection_cache_round_trips(tmp_path: Path):
+  results = [ProbeResult("imessage", True, "chat.db found", extras={"path": "/tmp/chat.db"})]
+  path = tmp_path / "cache" / "detection.json"
+  save_cached(results, path=path)
+
+  loaded = load_cached(path=path)
+  assert loaded is not None
+  assert loaded[0].name == "imessage"
+  assert loaded[0].enabled is True
+  assert loaded[0].extras["path"] == "/tmp/chat.db"
+
+
+def test_detection_cache_freshness():
+  now = datetime(2026, 5, 17, 12, tzinfo=timezone.utc)
+  doc = {
+    "generated_at": (now - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+    "ttl_seconds": 86400,
+    "report": [],
+  }
+  assert is_fresh(doc, now=now) is True
+  doc["generated_at"] = (now - timedelta(days=2)).isoformat().replace("+00:00", "Z")
+  assert is_fresh(doc, now=now) is False
+
+
+def test_run_all_cached_reuses_fresh_cache(monkeypatch, tmp_path: Path):
+  monkeypatch.setenv("MNEM_HOME", str(tmp_path))
+  cached = [ProbeResult("cached", True, "from cache")]
+  save_cached(cached)
+
+  from mnem import sources
+
+  def fail_run_all():
+    raise AssertionError("run_all should not be called")
+
+  monkeypatch.setattr(sources, "run_all", fail_run_all)
+  results = run_all_cached()
+  assert [r.name for r in results] == ["cached"]
+
+
+def test_run_all_cached_rescan_ignores_cache(monkeypatch, tmp_path: Path):
+  monkeypatch.setenv("MNEM_HOME", str(tmp_path))
+  save_cached([ProbeResult("cached", True, "from cache")])
+
+  from mnem import sources
+
+  monkeypatch.setattr(sources, "run_all", lambda: [ProbeResult("fresh", True, "rescanned")])
+  results = run_all_cached(rescan=True)
+  assert [r.name for r in results] == ["fresh"]

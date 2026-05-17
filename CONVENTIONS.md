@@ -265,6 +265,9 @@ commands are data-class unless explicitly documented as action-class:
   events, ledger loops, and YAAMS promotion candidates.
 - `mnem remember "<fact>"` is action-class and returns an action
   envelope with `ok`, `exit_code`, `error`, and the child ledger result.
+- `mnem init --quick` is action-class and returns the standard action
+  envelope under `--json`; bare `mnem init` remains interactive and
+  rejects `--json`.
 
 For fused data-class commands, source failures are reported in
 `warnings[]` and the successful source payloads remain available.

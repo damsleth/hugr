@@ -9,6 +9,7 @@ The wizard is interactive class. We test:
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -36,6 +37,70 @@ def test_init_rejects_json():
   assert result.exit_code == 1
   combined = result.output + (result.stderr_bytes or b"").decode("utf-8", "ignore")
   assert "interactive" in combined.lower()
+  assert "--quick --json" in combined
+
+
+def test_init_quick_json_writes_master_and_yaams_config(monkeypatch, tmp_path: Path):
+  monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  from mnem.commands import init as init_mod
+  monkeypatch.setattr(init_mod, "run_all_cached", lambda: _stub_probes())
+  monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  import shutil
+  monkeypatch.setattr(shutil, "which", lambda _name: None)
+
+  result = CliRunner().invoke(cli, ["init", "--quick", "--json"])
+  assert result.exit_code == 0, result.output
+  doc = json.loads(result.output)
+  assert doc["ok"] is True
+  assert doc["command"] == "init --quick"
+
+  master = tmp_path / "mnem" / "config.yaml"
+  yaams_cfg = tmp_path / "yaams" / "config.yaml"
+  assert master.is_file()
+  assert yaams_cfg.is_file()
+  parsed = read_master(master)
+  assert parsed["yaams_config"] == str(yaams_cfg)
+  assert "mnem ask" in doc["next_steps"][0]
+
+
+def test_init_quick_adopts_existing_yaams_without_mutating(monkeypatch, tmp_path: Path):
+  monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  existing = tmp_path / "yaams" / "config.yaml"
+  existing.parent.mkdir(parents=True)
+  original = b"# custom\ncustom_key: keep-me\n"
+  existing.write_bytes(original)
+
+  from mnem.commands import init as init_mod
+  monkeypatch.setattr(init_mod, "run_all_cached", lambda: _stub_probes())
+  import shutil
+  monkeypatch.setattr(shutil, "which", lambda _name: None)
+
+  result = CliRunner().invoke(cli, ["init", "--quick", "--json"])
+  assert result.exit_code == 0, result.output
+  assert existing.read_bytes() == original
+  doc = json.loads(result.output)
+  assert doc["stats"]["adopted"]["yaams_config"] == str(existing)
+
+
+def test_init_quick_reports_downstream_step_failures(monkeypatch, tmp_path: Path):
+  monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  from mnem.commands import init as init_mod
+  monkeypatch.setattr(init_mod, "run_all_cached", lambda: _stub_probes())
+  import shutil
+  monkeypatch.setattr(shutil, "which", lambda _name: "/bin/yaams")
+
+  def fake_step(label, argv):
+    return {"label": label, "argv": argv, "ok": False, "exit_code": 1}
+
+  monkeypatch.setattr(init_mod, "_run_quick_step", fake_step)
+  result = CliRunner().invoke(cli, ["init", "--quick", "--json"])
+  assert result.exit_code == 5, result.output
+  doc = json.loads(result.output)
+  assert doc["ok"] is False
+  assert doc["error"]["code"] == "bootstrap_step_failed"
 
 
 def test_build_yaams_config_round_trips_through_yaml_parsing():

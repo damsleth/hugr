@@ -330,7 +330,7 @@ def remember_cmd(
   "as_json",
   is_flag=True,
   default=False,
-  help="(rejected) init is interactive; use `mnem doctor --json` instead.",
+  help="Machine mode for `mnem init --quick`; rejected for interactive init.",
 )
 @click.option(
   "--force",
@@ -338,10 +338,27 @@ def remember_cmd(
   default=False,
   help="Overwrite an existing yaams config without prompting.",
 )
+@click.option(
+  "--quick",
+  is_flag=True,
+  default=False,
+  help="Run the non-interactive bootstrap path.",
+)
+@click.option(
+  "--with-models",
+  is_flag=True,
+  default=False,
+  help="Allow optional heavyweight model setup in quick mode.",
+)
 @click.pass_context
-def init_cmd(ctx: click.Context, as_json: bool, force: bool) -> None:
+def init_cmd(ctx: click.Context, as_json: bool, force: bool, quick: bool, with_models: bool) -> None:
   from mnem.commands.init import run
-  ctx.exit(run(as_json or ctx.obj.get("json", False), force=force))
+  ctx.exit(run(
+    as_json or ctx.obj.get("json", False),
+    force=force,
+    quick=quick,
+    with_models=with_models,
+  ))
 
 
 def _yaams_config_env(full: tuple[str, ...]) -> dict[str, str]:
