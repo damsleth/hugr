@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mnem-suite"
-version = "0.3.2"
+version = "0.3.3"
 description = "Meta-CLI and suite hub for the mnem memory suite (yaams, cognitive-ledger, owa-piggy, owa-tools)"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -34,10 +34,23 @@ mnem = "mnem.cli:main"
 dev = [
   "pytest>=7",
 ]
+tui = ["textual>=0.60", "pytest-asyncio>=0.23"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.30", "jinja2>=3.1"]
+mcp = ["mcp>=1.0"]
+all = ["mnem-suite[tui,web,mcp]"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["mnem*"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src", "tests"]
+extraPaths = ["src"]
+pythonVersion = "3.11"
+reportMissingImports = "error"

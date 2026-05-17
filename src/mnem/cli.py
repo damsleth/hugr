@@ -35,7 +35,11 @@ from pathlib import Path
 import click
 
 from mnem import __version__
-from mnem.config import master_config_path, resolved_yaams_config
+from mnem.config import (
+  explicit_config_in_args,
+  master_config_path,
+  yaams_config_env_for_args,
+)
 
 
 # --- First-run hint helpers -------------------------------------------------
@@ -62,9 +66,7 @@ _VERBS_NEEDING_CONFIG = {
 
 def _explicit_config_in_args(args: tuple[str, ...]) -> bool:
   """True iff the user passed --config / --config=... themselves."""
-  return any(
-    a == "--config" or a.startswith("--config=") for a in args
-  )
+  return explicit_config_in_args(args)
 
 
 # Env vars that bypass the first-run guard, scoped to the verb that
@@ -225,21 +227,7 @@ def _yaams_config_env(full: tuple[str, ...]) -> dict[str, str]:
 
   Never overrides a user-set ``YAAMS_CONFIG``.
   """
-  from mnem.router import lookup
-  resolved = lookup(list(full))
-  if resolved is None:
-    return {}
-  mapping, _ = resolved
-  if mapping.binary != "yaams":
-    return {}
-  if os.environ.get("YAAMS_CONFIG"):
-    return {}
-  if _explicit_config_in_args(full):
-    return {}
-  cfg = resolved_yaams_config()
-  if cfg is None:
-    return {}
-  return {"YAAMS_CONFIG": str(cfg)}
+  return yaams_config_env_for_args(full)
 
 
 def _make_passthrough(name: str, head: tuple[str, ...]):
@@ -281,6 +269,52 @@ graph_cmd = _make_passthrough("graph", ("graph",))
 people_cmd = _make_passthrough("people", ("people",))
 schedule_cmd = _make_passthrough("schedule", ("schedule",))
 drive_cmd = _make_passthrough("drive", ("drive",))
+
+
+@cli.command("tui")
+def tui_cmd() -> None:
+  """Launch the interactive Textual TUI (requires [tui] extra)."""
+  import sys
+  try:
+    from mnem.tui.app import run
+  except ImportError:
+    import click as _click
+    _click.echo('tui extra not installed; pipx install "mnem-suite[tui]"', err=True)
+    sys.exit(4)
+  run()
+
+
+@cli.command("mcp")
+@click.option(
+  "--stdio",
+  "transport",
+  flag_value="stdio",
+  default=True,
+  help="Serve over stdio (default, for Claude Code / local MCP clients).",
+)
+@click.option(
+  "--http",
+  "transport",
+  flag_value="http",
+  help="Serve over HTTP (plan 04.6; not yet implemented).",
+)
+def mcp_cmd(transport: str) -> None:
+  """Serve mnem.api as MCP tools (requires [mcp] extra)."""
+  import sys
+  try:
+    import mcp  # noqa: F401 - presence check only
+  except ImportError:
+    click.echo(
+      'mcp extra not installed; pipx install "mnem-suite[mcp]"',
+      err=True,
+    )
+    sys.exit(4)
+  if transport == "http":
+    click.echo("mnem mcp --http is not yet implemented (plan 04.6).", err=True)
+    sys.exit(4)
+  import asyncio
+  from mnem.mcp.stdio import run
+  asyncio.run(run())
 
 
 def main() -> int:

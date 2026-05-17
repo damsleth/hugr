@@ -7,10 +7,12 @@ collects findings into one document.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from typing import TextIO
 
 from mnem import __version__
+from mnem.config import resolved_default_owa_profile
 from mnem.failure import run_subprocess
 
 
@@ -60,6 +62,61 @@ def _probe(binary: str) -> dict:
   return env
 
 
+def _m365_profiles() -> list[dict]:
+  """Query owa-piggy for profile names and token-expiry state.
+
+  Returns a list of profile dicts suitable for the doctor JSON stanza.
+  If owa-piggy is not installed or returns nonzero, returns an empty list
+  so the caller can render a "not configured" note.
+
+  Each dict has the shape:
+    {
+      "name": str,
+      "token_expires_at": str | None,  # ISO-8601 or null
+      "is_default": bool,              # matches master config default_owa_profile
+    }
+  """
+  try:
+    proc = subprocess.run(
+      ["owa-piggy", "profiles", "list", "--json"],
+      capture_output=True,
+      text=True,
+      timeout=10,
+    )
+  except (FileNotFoundError, subprocess.TimeoutExpired):
+    return []
+
+  if proc.returncode != 0 or not proc.stdout.strip():
+    return []
+
+  try:
+    raw = json.loads(proc.stdout)
+  except json.JSONDecodeError:
+    return []
+
+  # owa-piggy profiles list returns either a list of profile objects or a
+  # wrapper dict. Normalise to a list.
+  if isinstance(raw, dict):
+    raw = raw.get("profiles") or raw.get("results") or []
+  if not isinstance(raw, list):
+    return []
+
+  default_profile = resolved_default_owa_profile()
+
+  profiles: list[dict] = []
+  for entry in raw:
+    if not isinstance(entry, dict):
+      continue
+    name = entry.get("name") or entry.get("alias") or entry.get("profile") or str(entry)
+    expires = entry.get("token_expires_at") or entry.get("expires_at") or None
+    profiles.append({
+      "name": name,
+      "token_expires_at": expires,
+      "is_default": (name == default_profile) if default_profile else False,
+    })
+  return profiles
+
+
 def _aggregate() -> dict:
   components = []
   worst_exit = 0
@@ -79,33 +136,47 @@ def _aggregate() -> dict:
     if "error" in severities:
       sub_exit = max(sub_exit, 1)
     worst_exit = max(worst_exit, sub_exit)
+
+  m365 = _m365_profiles()
   return {
     "tool": "mnem",
     "version": __version__,
     "components": components,
+    "m365_profiles": m365,
     "_exit_code": worst_exit,
   }
 
 
-def run(as_json: bool, stream: TextIO | None = None) -> int:
-  if stream is None:
-    stream = sys.stdout
+def build_report() -> tuple[dict, int]:
+  """Return (report_dict, exit_code) without writing to stdout.
+
+  The dict is the same shape that ``run(as_json=True)`` serialises,
+  minus the internal ``_exit_code`` sentinel key.  Callers that only
+  want the dict can ignore the exit code; callers that drive process
+  exit (the CLI, the API layer) use the int.
+  """
   doc = _aggregate()
   exit_code = int(doc.pop("_exit_code", 0))
+  return doc, exit_code
+
+
+def run(as_json: bool, stream: TextIO | None = None) -> int:
+  out: TextIO = stream if stream is not None else sys.stdout
+  doc, exit_code = build_report()
   if as_json:
-    stream.write(json.dumps(doc, ensure_ascii=False) + "\n")
-    stream.flush()
+    out.write(json.dumps(doc, ensure_ascii=False) + "\n")
+    out.flush()
     return exit_code
 
-  stream.write(f"mnem doctor (v{doc['version']})\n")
+  out.write(f"mnem doctor (v{doc['version']})\n")
   for comp in doc["components"]:
     name = comp["tool"]
     if not comp.get("installed"):
-      stream.write(f"  {name:<18}  - not installed\n")
+      out.write(f"  {name:<18}  - not installed\n")
       continue
     findings = comp.get("findings") or []
     if not findings:
-      stream.write(f"  {name:<18}  ok\n")
+      out.write(f"  {name:<18}  ok\n")
       continue
     severities = {f["severity"] for f in findings}
     if "error" in severities:
@@ -114,9 +185,21 @@ def run(as_json: bool, stream: TextIO | None = None) -> int:
       mark = "!"
     else:
       mark = "."
-    stream.write(f"  {name:<18}  {mark} {len(findings)} finding(s)\n")
+    out.write(f"  {name:<18}  {mark} {len(findings)} finding(s)\n")
     for f in findings:
       hint = f"  hint: {f['hint']}" if f.get("hint") else ""
-      stream.write(f"    - [{f['severity']}] {f['id']}: {f['message']}{hint}\n")
-  stream.flush()
+      out.write(f"    - [{f['severity']}] {f['id']}: {f['message']}{hint}\n")
+
+  # M365 profiles stanza - read-only, never picks a default.
+  out.write("\nM365 profiles (owa-piggy):\n")
+  profiles = doc.get("m365_profiles") or []
+  if not profiles:
+    out.write("  owa-piggy: not configured\n")
+  else:
+    for p in profiles:
+      default_tag = " [default]" if p.get("is_default") else ""
+      expires = p.get("token_expires_at") or "unknown"
+      out.write(f"  {p['name']}{default_tag}  expires: {expires}\n")
+
+  out.flush()
   return exit_code

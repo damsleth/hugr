@@ -69,9 +69,19 @@ def _data_doc() -> dict:
   }
 
 
+def build_report() -> dict:
+  """Return the version data dict without writing to stdout.
+
+  The dict is the same shape that ``run(as_json=True)`` serialises.
+  Called by ``mnem.api.version`` so surfaces never shell out just for
+  version info.
+  """
+  return _data_doc()
+
+
 def run(as_json: bool, stream: TextIO | None = None) -> int:
   out: TextIO = stream if stream is not None else sys.stdout
-  doc = _data_doc()
+  doc = build_report()
   if as_json:
     out.write(json.dumps(doc, ensure_ascii=False) + "\n")
     out.flush()

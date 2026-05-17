@@ -103,6 +103,31 @@ def test_passthrough_run_forwards_extra_env(monkeypatch):
   assert captured["extra_env"] == {"YAAMS_CONFIG": "/mnem/cfg.yaml"}
 
 
+def test_api_passthrough_injects_yaams_config(monkeypatch, tmp_path: Path):
+  """The in-process API must preserve the CLI's yaams config fallback."""
+  monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+  monkeypatch.delenv("YAAMS_CONFIG", raising=False)
+  cfg = _make_cfg(tmp_path)
+
+  import mnem.api as api
+  import mnem.api._passthrough as passthrough_api
+
+  captured: dict[str, object] = {}
+
+  def _fake(argv, *, extra_env=None):
+    captured["argv"] = list(argv)
+    captured["extra_env"] = extra_env
+    return 0, b'{"tool":"yaams","ok":true}', ""
+
+  monkeypatch.setattr(passthrough_api, "_capture_subprocess", _fake)
+
+  rc, _stdout = api.yaams_query(["anything"])
+
+  assert rc == 0
+  assert captured["argv"] == ["yaams", "query", "anything", "--json"]
+  assert captured["extra_env"] == {"YAAMS_CONFIG": str(cfg)}
+
+
 def test_stream_subprocess_merges_extra_env_into_child(tmp_path: Path):
   """Unit check that the env actually reaches the child."""
   from mnem.commands import passthrough
