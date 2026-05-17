@@ -101,6 +101,11 @@ for every route. It calls `mnem.api` directly, never the router or
 passthrough layer, so the CLI, TUI, web UI, and MCP tools share the
 same fused result documents.
 
+`mnem server` is the deploy/runtime entrypoint over that same web app.
+It binds to loopback by default and refuses public binds unless the
+operator opts into `--insecure` or declares an upstream auth proxy with
+`MNEM_AUTH_PROXY`.
+
 ## Install model
 
 One brew install pulls the whole suite via formula dependencies:

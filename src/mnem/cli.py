@@ -449,6 +449,17 @@ def web_cmd(host: str, port: int, public: bool) -> None:
   launch(host=host, port=port, public=public)
 
 
+@cli.command("server")
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=7777, show_default=True, type=int)
+@click.option("--mcp", is_flag=True, default=False, help="Also expose MCP HTTP transport when available.")
+@click.option("--insecure", is_flag=True, default=False, help="Allow non-loopback bind without an auth proxy.")
+def server_cmd(host: str, port: int, mcp: bool, insecure: bool) -> None:
+  """Run mnem web/server runtime (requires [server] extra)."""
+  from mnem.server.app import launch
+  launch(host=host, port=port, mcp=mcp, insecure=insecure)
+
+
 @cli.command("mcp")
 @click.option(
   "--stdio",

@@ -107,11 +107,15 @@ The CLI is always installed. Optional surfaces stay behind extras:
 ```bash
 pipx install "mnem-suite[tui]"   # mnem tui
 pipx install "mnem-suite[web]"   # mnem web
+pipx install "mnem-suite[server]" # mnem server
 ```
 
 `mnem web` binds to `127.0.0.1:7777` by default. Binding to a public
 interface requires `--public` and `MNEM_WEB_TOKEN`; put a real access
 proxy such as Cloudflare Access or tailscale in front for remote use.
+`mnem server` uses the same web app as the deployable runtime and
+refuses non-loopback binds unless you pass `--insecure` or set
+`MNEM_AUTH_PROXY=cloudflare|tailscale|none`.
 
 ## Skills
 
