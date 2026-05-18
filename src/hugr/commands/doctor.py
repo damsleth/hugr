@@ -72,21 +72,27 @@ def _m365_profiles() -> list[dict]:
   Each dict has the shape:
     {
       "name": str,
-      "token_expires_at": str | None,  # ISO-8601 or null
+      "token_expires_at": str | None,  # ISO-8601 or null (access token)
+      "state": str | None,             # owa-piggy state: ok|fail|disabled
       "is_default": bool,              # matches master config default_owa_profile
     }
   """
+  # `owa-piggy status --json` returns one record per profile with both the
+  # profile alias and the access_token expiry - everything the doctor stanza
+  # needs in a single call. (Earlier versions of this file called
+  # `owa-piggy profiles list --json`, which is not a real subcommand and
+  # always exited 2, causing the stanza to render "not configured".)
   try:
     proc = subprocess.run(
-      ["owa-piggy", "profiles", "list", "--json"],
+      ["owa-piggy", "status", "--json"],
       capture_output=True,
       text=True,
-      timeout=10,
+      timeout=15,
     )
   except (FileNotFoundError, subprocess.TimeoutExpired):
     return []
 
-  if proc.returncode != 0 or not proc.stdout.strip():
+  if not proc.stdout.strip():
     return []
 
   try:
@@ -94,8 +100,6 @@ def _m365_profiles() -> list[dict]:
   except json.JSONDecodeError:
     return []
 
-  # owa-piggy profiles list returns either a list of profile objects or a
-  # wrapper dict. Normalise to a list.
   if isinstance(raw, dict):
     raw = raw.get("profiles") or raw.get("results") or []
   if not isinstance(raw, list):
@@ -107,11 +111,17 @@ def _m365_profiles() -> list[dict]:
   for entry in raw:
     if not isinstance(entry, dict):
       continue
-    name = entry.get("name") or entry.get("alias") or entry.get("profile") or str(entry)
-    expires = entry.get("token_expires_at") or entry.get("expires_at") or None
+    name = entry.get("profile") or entry.get("alias") or entry.get("name")
+    if not name:
+      continue
+    access = entry.get("access_token")
+    if not isinstance(access, dict):
+      access = {}
+    expires = access.get("expires_at") or entry.get("token_expires_at") or None
     profiles.append({
       "name": name,
       "token_expires_at": expires,
+      "state": entry.get("state"),
       "is_default": (name == default_profile) if default_profile else False,
     })
   return profiles
