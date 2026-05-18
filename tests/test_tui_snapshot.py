@@ -16,10 +16,10 @@ textual = pytest.importorskip("textual", reason="textual not installed; install 
 @pytest.mark.asyncio
 async def test_ask_screen_initial_render() -> None:
   """App boots, ask screen is the active screen, key widgets are present."""
-  from hugr.tui.app import MnemApp
+  from hugr.tui.app import HugrApp
   from hugr.tui.screens.ask import AskScreen
 
-  app = MnemApp()
+  app = HugrApp()
   async with app.run_test(size=(120, 40)) as pilot:
     await pilot.pause()
     await pilot.pause()
@@ -49,7 +49,7 @@ async def test_ask_screen_initial_render() -> None:
 @pytest.mark.asyncio
 async def test_ask_screen_after_typing(monkeypatch) -> None:
   """Typing keys into the query input and pressing Enter updates the results pane."""
-  from hugr.tui.app import MnemApp
+  from hugr.tui.app import HugrApp
   from hugr.tui.screens.ask import AskScreen
   from textual.widgets import Static
 
@@ -74,7 +74,7 @@ async def test_ask_screen_after_typing(monkeypatch) -> None:
 
   monkeypatch.setattr(AskScreen, "run_worker", _fake_run_worker)
 
-  app = MnemApp()
+  app = HugrApp()
   async with app.run_test(size=(120, 40)) as pilot:
     await pilot.pause()
     await pilot.pause()
@@ -110,9 +110,9 @@ async def test_ask_screen_after_typing(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_q_key_quits() -> None:
   """Pressing q while input is not focused exits the app cleanly."""
-  from hugr.tui.app import MnemApp
+  from hugr.tui.app import HugrApp
 
-  app = MnemApp()
+  app = HugrApp()
   async with app.run_test(size=(120, 40)) as pilot:
     await pilot.pause()
     await pilot.pause()

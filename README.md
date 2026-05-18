@@ -1,5 +1,8 @@
-# hugr ᚼᚢᚴᛦ
+<p align="center">
+  <img src="hugr.png" alt="hugr logo" style="max-height: 400px;" height="400">
+</p>
 
+# ᚼᚢᚴᛦ - (/ˈhuɡr/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![status](https://img.shields.io/badge/status-pre--release-orange)
 
@@ -11,11 +14,10 @@ that ties them together. Your data stays on your machine.
 on their own. The umbrella adds one verb surface, one install command,
 one place to find what is in the box.
 
-The name `hugr` (Old Norse, nominative of Proto-Germanic *\*hugiz*)
-means "mind, thought, sense" - and in the Norse conception of self,
+The name `hugr` is from Old Norse, where it means "mind, thought, sense" - and in the Norse conception of self,
 specifically the part of the mind that can travel outside the body
-to see and act on distant things. The wordmark in Younger Futhark is
-ᚼᚢᚴᛦ: hagall, úr, kaun, yr.
+to see and act on distant things.  
+The wordmark in Younger Futhark is ᚼᚢᚴᛦ: hagall, úr, kaun, yr.
 
 ```
                             hugr (meta-CLI + suite hub)
@@ -23,7 +25,7 @@ to see and act on distant things. The wordmark in Younger Futhark is
               +------------------------+------------------------+
               |               |                |                |
             YAAMS    cognitive-ledger    owa-piggy        owa-tools
-         (Tier 1 raw)   (Tier 2 curated)  (M365 auth)   (M365 read/write)
+         (Tier 1 raw) (Tier 2 curated)  (M365 auth)   (M365 read/write)
 ```
 
 ## What's in the box
@@ -31,9 +33,9 @@ to see and act on distant things. The wordmark in Younger Futhark is
 | Tool | Purpose | Binaries |
 | --- | --- | --- |
 | [**YAAMS**](https://github.com/damsleth/yaams) | Tier 1 raw memory store - every iMessage, mail, calendar event, GitHub issue, ingested and queryable from a single SQLite file. | `yaams` |
-| [**cognitive-ledger**](https://github.com/damsleth/cognitive-ledger) | Tier 2 curated atomic notes engine - the gems you promote out of YAAMS and keep forever as markdown with frontmatter. | `ledger`, `ledger-obsidian`, `sheep` |
-| [**owa-piggy**](https://github.com/damsleth/owa-piggy) | Microsoft 365 auth broker - turns your existing Outlook Web session into a reusable token. No app registration. | `owa-piggy` |
-| [**owa-tools**](https://github.com/damsleth/owa-tools) | M365 read/write CLI suite - calendar, mail, Graph, OneDrive, scheduling, people lookup, all JSON-by-default. | `owa`, `owa-cal`, `owa-mail`, `owa-graph`, `owa-doctor`, `owa-people`, `owa-sched`, `owa-drive` |
+| [**cognitive ledger**](https://github.com/damsleth/cognitive-ledger) | Tier 2 curated atomic notes engine - the gems you promote out of YAAMS and keep forever as markdown with frontmatter. | `ledger`, `ledger-obsidian`, `sheep` |
+| [**owa piggy**](https://github.com/damsleth/owa-piggy) | Microsoft 365 auth broker - turns your existing Outlook Web session into a reusable token. No app registration. | `owa-piggy` |
+| [**owa tools**](https://github.com/damsleth/owa-tools) | M365 read/write CLI suite - calendar, mail, Graph, OneDrive, scheduling, people lookup, all JSON-by-default. | `owa`, `owa-cal`, `owa-mail`, `owa-graph`, `owa-doctor`, `owa-people`, `owa-sched`, `owa-drive` |
 
 `hugr` itself adds one more binary that routes the verbs above into
 a single user-facing surface, plus a `hu` symlink for typing speed.

@@ -2,5 +2,5 @@
 
 Requires the [tui] extra:  pip install "hugr-cli[tui]"
 
-Entry point: hugr.tui.app.MnemApp
+Entry point: hugr.tui.app.HugrApp
 """

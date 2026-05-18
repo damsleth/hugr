@@ -36,7 +36,7 @@ CSS = """
 """
 
 
-class MnemApp(App):
+class HugrApp(App):
   """The hugr terminal UI.
 
   Keyboard-first.  Default screen is AskScreen.
@@ -64,7 +64,7 @@ class MnemApp(App):
 
 def run() -> None:
   """Launch the TUI.  Called by ``hugr tui``."""
-  MnemApp().run()
+  HugrApp().run()
 
 
 if __name__ == "__main__":
