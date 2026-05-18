@@ -1,7 +1,4 @@
-# Suite architecture
-
-The polished narrative of how the four tools fit together. If
-`README.md` is the elevator pitch, this is the floor plan.
+# hugr suite architecture
 
 ## The four components
 
