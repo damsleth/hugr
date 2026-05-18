@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from mnem.failure import (
+from hugr.failure import (
   LOG_FILENAME,
   log_path,
   parse_stdout,
@@ -156,7 +156,7 @@ def test_run_subprocess_missing_binary_returns_crashed():
 
 
 def test_run_subprocess_injects_json_flag():
-  """The capture contract: mnem always passes --json to JSON-capable
+  """The capture contract: hugr always passes --json to JSON-capable
   CLIs unless one is already present."""
   # Use python -c as the "underlying tool" so we can observe what
   # arguments it sees.
@@ -207,4 +207,4 @@ def test_run_subprocess_skip_inject_when_false():
 
 
 def test_log_path_under_xdg_state_home(tmp_path: Path):
-  assert log_path() == tmp_path / "mnem" / LOG_FILENAME
+  assert log_path() == tmp_path / "hugr" / LOG_FILENAME

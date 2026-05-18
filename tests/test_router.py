@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from mnem.router import TABLE, lookup, verbs
+from hugr.router import TABLE, lookup, verbs
 
 
 def test_table_has_required_verbs_for_phase_3a():
@@ -93,7 +93,7 @@ def test_mail_routes_to_owa_mail():
 
 
 def test_calendar_routes_to_owa_cal():
-  mapping, rewritten = lookup(["calendar", "events", "--today"])
+  mapping, rewritten = lookup(["cal", "events", "--today"])
   assert mapping.binary == "owa-cal"
   assert rewritten == ["events", "--today"]
 
@@ -141,12 +141,12 @@ def test_ledger_context_build_with_args():
 
 
 def test_longest_prefix_match_wins():
-  # `mnem promote review` should beat any hypothetical `mnem
+  # `hugr promote review` should beat any hypothetical `hugr
   # promote` mapping (today there's no bare `promote`, but the
   # routing logic must still resolve the longest prefix first).
   mapping, _ = lookup(["promote", "review"])
   assert mapping.binary == "yaams"
-  # And a bare `mnem promote` with no subcommand returns None
+  # And a bare `hugr promote` with no subcommand returns None
   # rather than dispatching to a shorter prefix.
   result = lookup(["promote"])
   # promote-only doesn't exist in the table; expect None.

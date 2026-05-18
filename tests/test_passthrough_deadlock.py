@@ -1,10 +1,10 @@
 """Regression test for the passthrough stderr-deadlock.
 
-Before the fix, mnem read stdout to EOF and only then drained
+Before the fix, hugr read stdout to EOF and only then drained
 stderr. A child that wrote enough free-text diagnostics to stderr
 (progress lines, tqdm output, etc.) before closing stdout filled
 the OS pipe buffer (~64KB on macOS, often less on Linux) and
-blocked forever. mnem in turn blocked on stdout.
+blocked forever. hugr in turn blocked on stdout.
 
 The fix drains stderr concurrently on a background thread.
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from mnem.commands.passthrough import _stream_subprocess
+from hugr.commands.passthrough import _stream_subprocess
 
 
 def _make_noisy_child(tmp_path: Path, stderr_kb: int) -> list[str]:

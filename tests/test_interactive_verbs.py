@@ -2,8 +2,8 @@
 --json injected into argv and must NOT capture stdio.
 
 CONVENTIONS.md marks these as interactive class with --json
-rejected. Before the fix mnem unconditionally appended --json,
-which made `mnem promote review` and `mnem auth setup` fail before
+rejected. Before the fix hugr unconditionally appended --json,
+which made `hugr promote review` and `hugr auth setup` fail before
 prompting.
 """
 from __future__ import annotations
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from mnem.commands import passthrough
-from mnem.router import TABLE, lookup
+from hugr.commands import passthrough
+from hugr.router import TABLE, lookup
 
 
 def test_promote_review_is_marked_interactive():

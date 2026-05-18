@@ -13,7 +13,7 @@ import sys
 
 def _run(*args):
   return subprocess.run(
-    [sys.executable, "-m", "mnem", *args],
+    [sys.executable, "-m", "hugr", *args],
     capture_output=True, text=True,
   )
 

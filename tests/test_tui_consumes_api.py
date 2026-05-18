@@ -1,10 +1,10 @@
-"""Static import-boundary check: tui/ modules must only import from mnem.api.
+"""Static import-boundary check: tui/ modules must only import from hugr.api.
 
 Enforces the "surfaces share api" rule from the 03-interactive-surfaces plan:
-- mnem.tui must NOT import from mnem.router
-- mnem.tui must NOT import from mnem.commands.passthrough
+- hugr.tui must NOT import from hugr.router
+- hugr.tui must NOT import from hugr.commands.passthrough
 
-Uses ast.parse + a visitor to walk every Python file under src/mnem/tui/.
+Uses ast.parse + a visitor to walk every Python file under src/hugr/tui/.
 """
 
 from __future__ import annotations
@@ -15,13 +15,13 @@ from pathlib import Path
 import pytest
 
 
-_SRC_ROOT = Path(__file__).parent.parent / "src" / "mnem"
+_SRC_ROOT = Path(__file__).parent.parent / "src" / "hugr"
 _TUI_ROOT = _SRC_ROOT / "tui"
 _WEB_ROOT = _SRC_ROOT / "web"
 
 _FORBIDDEN_PREFIXES = (
-  "mnem.router",
-  "mnem.commands.passthrough",
+  "hugr.router",
+  "hugr.commands.passthrough",
 )
 
 
@@ -43,35 +43,35 @@ def _tui_py_files() -> list[Path]:
 
 
 def test_tui_root_exists() -> None:
-  assert _TUI_ROOT.exists(), f"src/mnem/tui/ does not exist at {_TUI_ROOT}"
+  assert _TUI_ROOT.exists(), f"src/hugr/tui/ does not exist at {_TUI_ROOT}"
 
 
 def test_tui_does_not_import_router() -> None:
-  """No tui module imports mnem.router directly."""
+  """No tui module imports hugr.router directly."""
   violations: list[str] = []
   for path in _tui_py_files():
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     for name in _collect_imports(tree):
-      if name.startswith("mnem.router"):
+      if name.startswith("hugr.router"):
         violations.append(f"{path.relative_to(_TUI_ROOT.parent.parent.parent)}: imports {name!r}")
   assert not violations, (
-    "tui modules must not import mnem.router directly; use mnem.api instead.\n"
+    "tui modules must not import hugr.router directly; use hugr.api instead.\n"
     + "\n".join(violations)
   )
 
 
 def test_tui_does_not_import_passthrough() -> None:
-  """No tui module imports mnem.commands.passthrough directly."""
+  """No tui module imports hugr.commands.passthrough directly."""
   violations: list[str] = []
   for path in _tui_py_files():
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     for name in _collect_imports(tree):
-      if name.startswith("mnem.commands.passthrough"):
+      if name.startswith("hugr.commands.passthrough"):
         violations.append(f"{path.relative_to(_TUI_ROOT.parent.parent.parent)}: imports {name!r}")
   assert not violations, (
-    "tui modules must not import mnem.commands.passthrough; use mnem.api instead.\n"
+    "tui modules must not import hugr.commands.passthrough; use hugr.api instead.\n"
     + "\n".join(violations)
   )
 
@@ -100,6 +100,6 @@ def test_web_does_not_import_router_or_passthrough() -> None:
       if name.startswith(_FORBIDDEN_PREFIXES):
         violations.append(f"{path.relative_to(_SRC_ROOT.parent)}: imports {name!r}")
   assert not violations, (
-    "web modules must not import mnem.router or mnem.commands.passthrough; "
-    "use mnem.api instead.\n" + "\n".join(violations)
+    "web modules must not import hugr.router or hugr.commands.passthrough; "
+    "use hugr.api instead.\n" + "\n".join(violations)
   )

@@ -1,4 +1,4 @@
-"""Tests for MCP tool generation from mnem.api signatures.
+"""Tests for MCP tool generation from hugr.api signatures.
 
 Skipped cleanly if the mcp package is not installed.
 """
@@ -9,14 +9,14 @@ import pytest
 
 mcp = pytest.importorskip("mcp", reason="mcp extra not installed")
 
-import mnem.api as api
-from mnem.mcp.tools import NAME_MAP, build_tool_defs
+import hugr.api as api
+from hugr.mcp.tools import NAME_MAP, build_tool_defs
 
 
 def test_every_api_fn_has_a_tool():
-  """Every name in mnem.api.__all__ must have a corresponding tool def."""
+  """Every name in hugr.api.__all__ must have a corresponding tool def."""
   tools = build_tool_defs()
-  tool_names_by_fn = {fn: NAME_MAP.get(fn, "mnem." + fn.replace("_", ".")) for fn in api.__all__}
+  tool_names_by_fn = {fn: NAME_MAP.get(fn, "hugr." + fn.replace("_", ".")) for fn in api.__all__}
   generated_mcp_names = {t.name for t in tools}
   for fn_name, expected_mcp_name in tool_names_by_fn.items():
     assert expected_mcp_name in generated_mcp_names, (
@@ -26,7 +26,7 @@ def test_every_api_fn_has_a_tool():
 
 
 def test_tool_count_matches_api():
-  """Tool count must equal the number of entries in mnem.api.__all__."""
+  """Tool count must equal the number of entries in hugr.api.__all__."""
   tools = build_tool_defs()
   assert len(tools) == len(api.__all__), (
     f"Expected {len(api.__all__)} tools (one per api.__all__ entry), "
@@ -49,7 +49,7 @@ def test_passthrough_tools_have_args_array_schema():
   """Passthrough wrappers (args: list[str]) must have an args array property."""
   tools = build_tool_defs()
   # All tools except doctor and version are passthrough wrappers.
-  non_passthrough = {"mnem.doctor", "mnem.version", "mnem.ask", "mnem.find", "mnem.inbox", "mnem.remember"}
+  non_passthrough = {"hugr.doctor", "hugr.version", "hugr.recall", "hugr.find", "hugr.inbox", "hugr.remember"}
   for tool in tools:
     if tool.name in non_passthrough:
       continue
@@ -72,7 +72,7 @@ def test_passthrough_tools_have_args_array_schema():
 def test_no_arg_tools_have_empty_properties():
   """doctor() and version() take no args; their schemas must have no properties."""
   tools = build_tool_defs()
-  no_arg_tools = {"mnem.doctor", "mnem.version", "mnem.inbox"}
+  no_arg_tools = {"hugr.doctor", "hugr.version", "hugr.inbox"}
   for tool in tools:
     if tool.name not in no_arg_tools:
       continue
@@ -99,17 +99,17 @@ def test_known_tool_names_present():
   tools = build_tool_defs()
   generated_names = {t.name for t in tools}
   expected = {
-    "mnem.doctor",
-    "mnem.version",
-    "mnem.ask",
-    "mnem.find",
-    "mnem.inbox",
-    "mnem.remember",
-    "mnem.yaams.query",
-    "mnem.ledger.query",
-    "mnem.calendar",
-    "mnem.mail",
-    "mnem.auth",
+    "hugr.doctor",
+    "hugr.version",
+    "hugr.recall",
+    "hugr.find",
+    "hugr.inbox",
+    "hugr.remember",
+    "hugr.yaams.query",
+    "hugr.ledger.query",
+    "hugr.cal",
+    "hugr.mail",
+    "hugr.auth",
   }
   for name in expected:
     assert name in generated_names, f"Expected tool '{name}' not found"

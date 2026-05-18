@@ -1,4 +1,4 @@
-"""F6 - M365 profiles stanza in mnem doctor.
+"""F6 - M365 profiles stanza in hugr doctor.
 
 Tests:
 - When owa-piggy is not installed (FileNotFoundError), the stanza is
@@ -8,7 +8,7 @@ Tests:
   profile with name, token_expires_at, and is_default.
 - ``default_owa_profile`` from the master config drives the is_default
   flag on the matching profile.
-- ``mnem doctor --json`` includes the ``m365_profiles`` key at the top
+- ``hugr doctor --json`` includes the ``m365_profiles`` key at the top
   level of the returned document.
 """
 from __future__ import annotations
@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from mnem.cli import cli
-from mnem.commands.doctor import build_report, run
+from hugr.cli import cli
+from hugr.commands.doctor import build_report, run
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ def _make_proc(stdout: str, returncode: int = 0) -> MagicMock:
 
 def _patch_fanout(monkeypatch):
   """Replace the binary fan-out with a single no-op stub so tests are fast."""
-  from mnem.commands import doctor as doc_mod
+  from hugr.commands import doctor as doc_mod
   monkeypatch.setattr(doc_mod, "_FANOUT", [])
 
 
@@ -50,26 +50,26 @@ def _patch_fanout(monkeypatch):
 
 class TestM365ProfilesUnit:
   def test_returns_empty_when_owa_piggy_not_found(self, monkeypatch):
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     with patch("subprocess.run", side_effect=FileNotFoundError):
       result = _m365_profiles()
     assert result == []
 
   def test_returns_empty_when_subprocess_times_out(self, monkeypatch):
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("owa-piggy", 10)):
       result = _m365_profiles()
     assert result == []
 
   def test_returns_empty_when_returncode_nonzero(self):
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     proc = _make_proc(stdout="", returncode=1)
     with patch("subprocess.run", return_value=proc):
       result = _m365_profiles()
     assert result == []
 
   def test_returns_empty_when_stdout_not_json(self):
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     proc = _make_proc(stdout="not json at all")
     with patch("subprocess.run", return_value=proc):
       result = _m365_profiles()
@@ -77,7 +77,7 @@ class TestM365ProfilesUnit:
 
   def test_parses_list_output(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     payload = json.dumps([
       {"name": "work", "token_expires_at": "2026-06-01T12:00:00Z"},
       {"name": "personal", "token_expires_at": None},
@@ -94,7 +94,7 @@ class TestM365ProfilesUnit:
 
   def test_parses_wrapper_dict_output(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     payload = json.dumps({
       "profiles": [{"name": "swon", "token_expires_at": "2026-06-01T00:00:00Z"}]
     })
@@ -107,11 +107,11 @@ class TestM365ProfilesUnit:
   def test_is_default_flag_set_from_master_config(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     # Write a master config that names "work" as default.
-    master = tmp_path / "mnem" / "config.yaml"
+    master = tmp_path / "hugr" / "config.toml"
     master.parent.mkdir(parents=True)
-    master.write_text("version: 1\ndefault_owa_profile: work\n")
+    master.write_text("version = 1\ndefault_owa_profile = \"work\"\n")
 
-    from mnem.commands.doctor import _m365_profiles
+    from hugr.commands.doctor import _m365_profiles
     payload = json.dumps([
       {"name": "work"},
       {"name": "personal"},
@@ -184,9 +184,9 @@ class TestDoctorHumanRenderM365:
 
   def test_default_tag_appears_next_to_default_profile(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    master = tmp_path / "mnem" / "config.yaml"
+    master = tmp_path / "hugr" / "config.toml"
     master.parent.mkdir(parents=True)
-    master.write_text("version: 1\ndefault_owa_profile: work\n")
+    master.write_text("version = 1\ndefault_owa_profile = \"work\"\n")
     _patch_fanout(monkeypatch)
     payload = json.dumps([{"name": "work"}, {"name": "personal"}])
     proc = _make_proc(stdout=payload)
@@ -204,7 +204,7 @@ class TestDoctorHumanRenderM365:
 
 
 # ---------------------------------------------------------------------------
-# CLI surface: mnem doctor --json includes m365_profiles
+# CLI surface: hugr doctor --json includes m365_profiles
 # ---------------------------------------------------------------------------
 
 class TestDoctorJsonCLI:

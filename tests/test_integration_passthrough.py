@@ -1,14 +1,14 @@
 """Integration tests pinning the passthrough contract.
 
-The Phase 3a exit gate from `mnem_plan.md`:
+The Phase 3a exit gate from `hugr_plan.md`:
   "The same query against the same data produces identical output
-   whether issued via `yaams query --json` or `mnem query --json`."
+   whether issued via `yaams query --json` or `hugr query --json`."
 
 These tests verify that contract by invoking both paths against a
 disposable yaams DB and comparing the captured JSON shape.
 
 Skipped when yaams is not on PATH (so the suite stays runnable in
-mnem's own venv without the rest of the suite installed).
+hugr's own venv without the rest of the suite installed).
 """
 from __future__ import annotations
 
@@ -104,11 +104,11 @@ def _parse_final_json(text: str) -> dict | None:
   return None
 
 
-def _mnem_query(cfg: Path) -> dict:
-  mnem = shutil.which("mnem") or (Path(sys.executable).parent / "mnem")
+def _hugr_query(cfg: Path) -> dict:
+  hugr = shutil.which("hugr") or (Path(sys.executable).parent / "hugr")
   result = subprocess.run(
     [
-      str(mnem), "query",
+      str(hugr), "query",
       "--config", str(cfg),
       "--no-vector", "--no-parse", "--no-log",
       "--json",
@@ -119,25 +119,25 @@ def _mnem_query(cfg: Path) -> dict:
   return _parse_final_json(result.stdout)
 
 
-def test_mnem_query_byte_identical_to_yaams_query(yaams_config: Path):
+def test_hugr_query_byte_identical_to_yaams_query(yaams_config: Path):
   direct = _yaams_query(yaams_config)
-  via_mnem = _mnem_query(yaams_config)
+  via_hugr = _hugr_query(yaams_config)
 
   # retrieval_ms is timing - allow any nonzero value but ignore for
   # the equality check. Same for query_id (random uuid).
-  for doc in (direct, via_mnem):
+  for doc in (direct, via_hugr):
     doc.pop("retrieval_ms", None)
     doc.pop("synthesis_ms", None)
     doc.pop("query_id", None)
-  assert direct == via_mnem, (
-    f"mnem query and yaams query diverged.\n"
+  assert direct == via_hugr, (
+    f"hugr query and yaams query diverged.\n"
     f"  direct: {direct}\n"
-    f"  via mnem: {via_mnem}"
+    f"  via hugr: {via_hugr}"
   )
 
 
-def test_mnem_query_preserves_reserved_key_contract(yaams_config: Path):
-  payload = _mnem_query(yaams_config)
+def test_hugr_query_preserves_reserved_key_contract(yaams_config: Path):
+  payload = _hugr_query(yaams_config)
   # Data class: no top-level `ok` on success.
   assert "ok" not in payload
 
@@ -155,25 +155,25 @@ def _yaams_ingest_dry_run(cfg: Path) -> dict | None:
   return _parse_final_json(result.stdout)
 
 
-def _mnem_ingest_dry_run(cfg: Path) -> dict | None:
-  mnem = shutil.which("mnem") or (Path(sys.executable).parent / "mnem")
+def _hugr_ingest_dry_run(cfg: Path) -> dict | None:
+  hugr = shutil.which("hugr") or (Path(sys.executable).parent / "hugr")
   result = subprocess.run(
-    [str(mnem), "ingest", "--config", str(cfg), "--dry-run", "--json"],
+    [str(hugr), "ingest", "--config", str(cfg), "--dry-run", "--json"],
     capture_output=True, text=True,
   )
   return _parse_final_json(result.stdout)
 
 
-def test_mnem_ingest_terminal_envelope_matches_yaams(yaams_config: Path):
+def test_hugr_ingest_terminal_envelope_matches_yaams(yaams_config: Path):
   direct = _yaams_ingest_dry_run(yaams_config)
-  via_mnem = _mnem_ingest_dry_run(yaams_config)
-  for env in (direct, via_mnem):
+  via_hugr = _hugr_ingest_dry_run(yaams_config)
+  for env in (direct, via_hugr):
     assert env is not None
     env.pop("duration_ms", None)
-  # The terminal `{type:"result", ...}` envelope from mnem is the
+  # The terminal `{type:"result", ...}` envelope from hugr is the
   # same data shape as yaams' direct envelope, modulo timing.
   if direct.get("type") == "result":
     direct = {k: v for k, v in direct.items() if k != "type"}
-  if via_mnem.get("type") == "result":
-    via_mnem = {k: v for k, v in via_mnem.items() if k != "type"}
-  assert direct == via_mnem
+  if via_hugr.get("type") == "result":
+    via_hugr = {k: v for k, v in via_hugr.items() if k != "type"}
+  assert direct == via_hugr

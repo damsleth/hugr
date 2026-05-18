@@ -6,14 +6,14 @@ cognitive-ledger, CLI/owa/*}` against
 [CONVENTIONS.md](CONVENTIONS.md) v1.
 
 Each gap below is one issue to file against the named repo before
-the Phase 2b/2c migration starts. The mnem repo does not file these
+the Phase 2b/2c migration starts. The hugr repo does not file these
 issues itself - that is a human action that touches shared state
 (GitHub).
 
 Severity legend:
 - **block**: violates a hard invariant; the suite contract breaks if
   not fixed.
-- **major**: required for `mnem` to ship, but not invariant-breaking.
+- **major**: required for `hugr` to ship, but not invariant-breaking.
 - **minor**: stylistic or surface-area gap that can land any time
   before Phase 3a.
 
@@ -49,7 +49,7 @@ Severity legend:
 7. **No NDJSON streaming on `ingest`.** With `--json`, ingest must
    emit `{type:"progress"|"warning"|"result"}` lines per the
    streaming schema. Today it emits human progress on stdout, which
-   would break the contract when consumed by `mnem`.
+   would break the contract when consumed by `hugr`.
 8. **`promote review` and `entities manage` do not explicitly
    reject `--json`.** Required for interactive class - they should
    exit 1 with a clear message, not silently ignore the flag.
@@ -151,7 +151,7 @@ Severity legend:
 ### block
 1. **No per-binary `--doctor`.** Today `owa-doctor` is a separate
    binary that aggregates. Spec requires each `owa-*` binary to
-   also implement `<tool> --doctor` so `mnem doctor` can fan out.
+   also implement `<tool> --doctor` so `hugr doctor` can fan out.
    `owa-doctor` itself stays and aggregates per-binary doctors.
 2. **No action envelopes** on any action-class command (`owa-cal
    create/update/delete`, `owa-mail send/reply/forward/delete/move/
@@ -181,11 +181,11 @@ Severity legend:
 9. **Redaction sentinel test** specifically for message bodies in
    `owa-mail send/reply/forward` failure paths.
 10. **`owa-doctor` schema alignment** with the aggregator JSON
-    shape `mnem doctor` will consume.
+    shape `hugr doctor` will consume.
 
 ---
 
-## mnem (`damsleth/mnem`, this repo)
+## hugr (`damsleth/hugr`, this repo)
 
 **Target**: 0.1.0 in Phase 3a.
 
@@ -193,7 +193,7 @@ This repo is greenfield. Phase 1 deliverables (README, SUITE,
 CONVENTIONS) are in place. No code yet; the router lands in 3a.
 
 The conformance table at the bottom of CONVENTIONS.md defines what
-`mnem` itself must implement; nothing to audit retroactively.
+`hugr` itself must implement; nothing to audit retroactively.
 
 ---
 
@@ -203,7 +203,7 @@ These are not per-repo but apply to the suite as a whole:
 
 1. **Shared `redact()` utility.** Each tool currently has ad-hoc
    logging; the spec requires a common redaction shape. Decide
-   whether this lives in a shared package (`mnem-conventions`?) or
+   whether this lives in a shared package (`hugr-conventions`?) or
    is copy-pasted into each repo with a regression test ensuring
    sync.
 2. **Doctor schema package.** The doctor JSON shape is shared
@@ -213,6 +213,6 @@ These are not per-repo but apply to the suite as a whole:
    action command across ~50 commands is enough to justify a
    shared `emit_envelope()` helper.
 
-Recommendation: create `mnem-conventions` as a small shared Python
+Recommendation: create `hugr-conventions` as a small shared Python
 package shipped from this repo. Each tool depends on it. Phase 3a
-work; track as an issue against `damsleth/mnem`.
+work; track as an issue against `damsleth/hugr`.

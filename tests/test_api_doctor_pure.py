@@ -1,7 +1,7 @@
-"""Tests for mnem.api.doctor() purity and CLI output equivalence.
+"""Tests for hugr.api.doctor() purity and CLI output equivalence.
 
-- mnem.api.doctor() returns a dict and an int; no stdout side-effects.
-- The Click CLI command (mnem doctor --json) still emits identical JSON.
+- hugr.api.doctor() returns a dict and an int; no stdout side-effects.
+- The Click CLI command (hugr doctor --json) still emits identical JSON.
 """
 
 from __future__ import annotations
@@ -10,8 +10,8 @@ import io
 import json
 from unittest.mock import patch
 
-from mnem.commands.doctor import _probe, run as doctor_cli_run
-import mnem.api as api
+from hugr.commands.doctor import _probe, run as doctor_cli_run
+import hugr.api as api
 
 
 def _stub_probe(binary: str) -> dict:
@@ -27,7 +27,7 @@ def _stub_probe(binary: str) -> dict:
 
 class TestApiDoctorReturnShape:
     def test_returns_tuple_of_dict_and_int(self):
-        with patch("mnem.commands.doctor._probe", side_effect=_stub_probe):
+        with patch("hugr.commands.doctor._probe", side_effect=_stub_probe):
             result = api.doctor()
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -36,15 +36,15 @@ class TestApiDoctorReturnShape:
         assert isinstance(exit_code, int)
 
     def test_dict_has_required_keys(self):
-        with patch("mnem.commands.doctor._probe", side_effect=_stub_probe):
+        with patch("hugr.commands.doctor._probe", side_effect=_stub_probe):
             doc, _ = api.doctor()
         assert "tool" in doc
         assert "version" in doc
         assert "components" in doc
-        assert doc["tool"] == "mnem"
+        assert doc["tool"] == "hugr"
 
     def test_exit_code_is_zero_when_all_ok(self):
-        with patch("mnem.commands.doctor._probe", side_effect=_stub_probe):
+        with patch("hugr.commands.doctor._probe", side_effect=_stub_probe):
             _, exit_code = api.doctor()
         assert exit_code == 0
 
@@ -59,12 +59,12 @@ class TestApiDoctorReturnShape:
                     {"id": "test_err", "severity": "error", "message": "bad", "hint": None}
                 ],
             }
-        with patch("mnem.commands.doctor._probe", side_effect=_erroring_probe):
+        with patch("hugr.commands.doctor._probe", side_effect=_erroring_probe):
             _, exit_code = api.doctor()
         assert exit_code != 0
 
     def test_no_stdout_side_effects(self, capsys):
-        with patch("mnem.commands.doctor._probe", side_effect=_stub_probe):
+        with patch("hugr.commands.doctor._probe", side_effect=_stub_probe):
             api.doctor()
         captured = capsys.readouterr()
         assert captured.out == ""
@@ -74,7 +74,7 @@ class TestApiDoctorReturnShape:
 class TestCliAndApiOutputEquivalence:
     def test_json_output_matches_api_dict(self):
         """CLI run(as_json=True) must emit the same dict that api.doctor() returns."""
-        with patch("mnem.commands.doctor._probe", side_effect=_stub_probe):
+        with patch("hugr.commands.doctor._probe", side_effect=_stub_probe):
             doc_api, _ = api.doctor()
             buf = io.StringIO()
             doctor_cli_run(as_json=True, stream=buf)

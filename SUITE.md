@@ -5,7 +5,7 @@ The polished narrative of how the four tools fit together. If
 
 ## The four components
 
-Each component is its own repo with its own release cadence. `mnem`
+Each component is its own repo with its own release cadence. `hugr`
 declares minimum versions of each; nothing else is synchronized.
 
 | Component | Repo | Binaries | Role |
@@ -14,7 +14,7 @@ declares minimum versions of each; nothing else is synchronized.
 | Cognitive Ledger | [`damsleth/cognitive-ledger`](https://github.com/damsleth/cognitive-ledger) | `ledger`, `ledger-obsidian`, `sheep` | Tier 2 curated atomic notes engine |
 | owa-piggy | [`damsleth/owa-piggy`](https://github.com/damsleth/owa-piggy) | `owa-piggy` | M365 auth broker |
 | owa-tools | [`damsleth/owa-tools`](https://github.com/damsleth/owa-tools) | `owa`, `owa-cal`, `owa-mail`, `owa-graph`, `owa-doctor`, `owa-people`, `owa-sched`, `owa-drive` | M365 read/write CLIs |
-| **mnem** (this repo) | `damsleth/mnem` | `mnem` | Suite hub + meta-CLI |
+| **hugr** (this repo) | `damsleth/hugr` | `hugr` | Suite hub + meta-CLI |
 
 ## Two-tier memory
 
@@ -65,12 +65,12 @@ monorepo. The split is by trust boundary, not by size:
   import `owa-piggy` and never see refresh tokens.
 
 YAAMS uses `owa-piggy` directly for the Teams and calendar adapters.
-`mnem mail` and `mnem calendar` route through `owa-tools`.
+`hugr mail` and `hugr calendar` route through `owa-tools`.
 
 ## Data flow
 
 ```
-                                    mnem
+                                    hugr
                                      │
        ┌───────────────────────────────┬──────────────────────────┐
        │                               │                          │
@@ -90,36 +90,36 @@ YAAMS uses `owa-piggy` directly for the Teams and calendar adapters.
 ```
 
 Ingestion is one-way (sources → YAAMS). Promotion is one-way (YAAMS
-→ ledger, gated by `promote review`). `mnem ask` sits above the direct
+→ ledger, gated by `promote review`). `hugr ask` sits above the direct
 tool verbs: it queries YAAMS/Tier 2 and opportunistically asks live
 M365 buckets when the cache may be stale. Every fused result includes
 `sources[]`, `citations[]`, and `warnings[]` so higher-level surfaces
 can show partial results without guessing which child tool failed.
 
 The optional web surface is FastAPI-rendered HTML with JSON variants
-for every route. It calls `mnem.api` directly, never the router or
+for every route. It calls `hugr.api` directly, never the router or
 passthrough layer, so the CLI, TUI, web UI, and MCP tools share the
 same fused result documents.
 
-`mnem server` is the deploy/runtime entrypoint over that same web app.
+`hugr server` is the deploy/runtime entrypoint over that same web app.
 It binds to loopback by default and refuses public binds unless the
 operator opts into `--insecure` or declares an upstream auth proxy with
-`MNEM_AUTH_PROXY`.
+`HUGR_AUTH_PROXY`.
 
 ## Install model
 
 One brew install pulls the whole suite via formula dependencies:
 
 ```bash
-brew install damsleth/tap/mnem
+brew install damsleth/tap/hugr
 ```
 
-The `mnem` formula declares minimum versions of `yaams`,
+The `hugr` formula declares minimum versions of `yaams`,
 `cognitive-ledger`, `owa-piggy`, and `owa-tools`. Brew resolves the
 graph and installs whatever isn't already present.
 
 If you already have any of the underlying tools installed and on a
-recent enough version, brew leaves them alone. After install, `mnem
+recent enough version, brew leaves them alone. After install, `hugr
 init` is the one wizard that wires up sources, generates configs,
 and runs a dry-run so you can see what's about to be ingested.
 
@@ -134,52 +134,52 @@ Every binary in the suite conforms to [CONVENTIONS.md](CONVENTIONS.md):
   `--json`.
 - Reserved-key contract on data results so machine consumers always
   have a parseable JSON value.
-- Single, suite-wide config precedence chain. `MNEM_HOME` is the
-  shared **data** root; config stays under `$XDG_CONFIG_HOME/mnem/`.
+- Single, suite-wide config precedence chain. `HUGR_HOME` is the
+  shared **data** root; config stays under `$XDG_CONFIG_HOME/hugr/`.
 - Standardized exit codes: 0 ok, 1 user error, 2 transient, 3 auth,
   4 not found, 5 partial success.
 
-Skill authors target `mnem` instead of individual binaries. Power
+Skill authors target `hugr` instead of individual binaries. Power
 users can still hit `yaams query --json` or `owa-cal events
 --today --json` directly and get byte-identical output.
 
 ## Skills boundary
 
 ```
-                    mnem (meta-CLI)
+                    hugr (meta-CLI)
                           │
               wraps │ (one direction)
                           ▼
         yaams · cognitive-ledger · owa-piggy · owa-tools
                           ▲
-              wraps │ (skills wrap mnem, not the other way)
+              wraps │ (skills wrap hugr, not the other way)
                           │
        damsleth/SKILLS (public)        damsleth/SKILLS-private
-       ├── /memory (routes mnem)       ├── cj-mnem
+       ├── /memory (routes hugr)       ├── cj-hugr
        ├── cj-yaams                    ├── cj-did
        ├── /notes                      ├── cj-timereg
        └── ...                         └── cj-weekly-review
 ```
 
-`mnem` wraps CLIs only. Skills wrap `mnem`. The public/private split
+`hugr` wraps CLIs only. Skills wrap `hugr`. The public/private split
 keeps reusable abstractions discoverable while personal-infra skills
 stay in a separate repo with a separate installer.
 
 ## Releases
 
-Independent semver per tool. `mnem` declares minimums. After the
+Independent semver per tool. `hugr` declares minimums. After the
 Phase 2c conformance bump, every tool returns to independent cadence.
 
 ```
-mnem 0.1.0 requires:
+hugr 0.1.0 requires:
   yaams >= 0.1.3
   cognitive-ledger >= 0.2.3
   owa-piggy >= 0.9.0
   owa-tools >= 0.1.2
 ```
 
-Source of truth: `src/mnem/_minimums.py`. Keep this block in sync; CI enforces.
+Source of truth: `src/hugr/_minimums.py`. Keep this block in sync; CI enforces.
 
 A breaking change in any underlying tool bumps that tool's major and
-`mnem` bumps its declared minimum on the next release; consumers see
+`hugr` bumps its declared minimum on the next release; consumers see
 one suite version, not five.

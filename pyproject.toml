@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mnem-suite"
-version = "0.3.3"
-description = "Meta-CLI and suite hub for the mnem memory suite (yaams, cognitive-ledger, owa-piggy, owa-tools)"
+name = "hugr-cli"
+version = "0.4.0"
+description = "Meta-CLI and suite hub for the hugr memory suite (yaams, cognitive-ledger, owa-piggy, owa-tools)"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
 authors = [{ name = "Carl Joakim Damsleth" }]
-keywords = ["mnem", "memory", "cli", "agent"]
+keywords = ["hugr", "memory", "cli", "agent"]
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
@@ -24,11 +24,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/damsleth/mnem"
-Source = "https://github.com/damsleth/mnem"
+Homepage = "https://github.com/damsleth/hugr"
+Source = "https://github.com/damsleth/hugr"
 
 [project.scripts]
-mnem = "mnem.cli:main"
+hugr = "hugr.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -38,7 +38,7 @@ tui = ["textual>=0.60", "pytest-asyncio>=0.23"]
 web = ["fastapi>=0.110", "uvicorn[standard]>=0.30", "jinja2>=3.1"]
 server = ["fastapi>=0.110", "uvicorn[standard]>=0.30", "jinja2>=3.1"]
 mcp = ["mcp>=1.0"]
-all = ["mnem-suite[tui,web,server,mcp]"]
+all = ["hugr-cli[tui,web,server,mcp]"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -46,7 +46,7 @@ asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["mnem*"]
+include = ["hugr*"]
 
 [tool.pyright]
 venvPath = "."

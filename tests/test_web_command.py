@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from click.testing import CliRunner
 
-from mnem.cli import cli
+from hugr.cli import cli
 
 
 def test_web_without_extra_fails_cleanly():
@@ -18,7 +18,7 @@ def test_web_refuses_non_loopback_without_public():
 
 
 def test_web_public_requires_token(monkeypatch):
-  monkeypatch.delenv("MNEM_WEB_TOKEN", raising=False)
+  monkeypatch.delenv("HUGR_WEB_TOKEN", raising=False)
   result = CliRunner().invoke(cli, ["web", "--host", "0.0.0.0", "--public"])
   assert result.exit_code == 3
-  assert "MNEM_WEB_TOKEN" in result.output
+  assert "HUGR_WEB_TOKEN" in result.output

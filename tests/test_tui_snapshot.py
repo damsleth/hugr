@@ -1,4 +1,4 @@
-"""Textual snapshot / structural tests for the mnem TUI.
+"""Textual snapshot / structural tests for the hugr TUI.
 
 Uses Textual's App.run_test() (async pilot).  Skipped cleanly when the
 [tui] extra is not installed so CI without textual still passes.
@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import pytest
 
-textual = pytest.importorskip("textual", reason="textual not installed; install mnem-suite[tui]")
+textual = pytest.importorskip("textual", reason="textual not installed; install hugr-cli[tui]")
 
 
 @pytest.mark.asyncio
 async def test_ask_screen_initial_render() -> None:
   """App boots, ask screen is the active screen, key widgets are present."""
-  from mnem.tui.app import MnemApp
-  from mnem.tui.screens.ask import AskScreen
+  from hugr.tui.app import MnemApp
+  from hugr.tui.screens.ask import AskScreen
 
   app = MnemApp()
   async with app.run_test(size=(120, 40)) as pilot:
@@ -49,8 +49,8 @@ async def test_ask_screen_initial_render() -> None:
 @pytest.mark.asyncio
 async def test_ask_screen_after_typing(monkeypatch) -> None:
   """Typing keys into the query input and pressing Enter updates the results pane."""
-  from mnem.tui.app import MnemApp
-  from mnem.tui.screens.ask import AskScreen
+  from hugr.tui.app import MnemApp
+  from hugr.tui.screens.ask import AskScreen
   from textual.widgets import Static
 
   captured_worker: dict[str, object] = {}
@@ -110,7 +110,7 @@ async def test_ask_screen_after_typing(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_q_key_quits() -> None:
   """Pressing q while input is not focused exits the app cleanly."""
-  from mnem.tui.app import MnemApp
+  from hugr.tui.app import MnemApp
 
   app = MnemApp()
   async with app.run_test(size=(120, 40)) as pilot:

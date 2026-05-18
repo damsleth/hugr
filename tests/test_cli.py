@@ -10,17 +10,17 @@ import json
 
 from click.testing import CliRunner
 
-from mnem import __version__
-from mnem.cli import cli
+from hugr import __version__
+from hugr.cli import cli
 
 
-# --- mnem hello -----------------------------------------------------------
+# --- hugr hello -----------------------------------------------------------
 
 def test_hello_json_shape():
   result = CliRunner().invoke(cli, ["hello", "--json"])
   assert result.exit_code == 0, result.output
   payload = json.loads(result.output.strip())
-  assert payload["tool"] == "mnem"
+  assert payload["tool"] == "hugr"
   assert payload["version"] == __version__
   # Reserved-key contract: data class has no top-level `ok`.
   assert "ok" not in payload
@@ -32,12 +32,12 @@ def test_hello_json_shape():
 def test_hello_human():
   result = CliRunner().invoke(cli, ["hello"])
   assert result.exit_code == 0, result.output
-  assert "mnem" in result.output
+  assert "hugr" in result.output
   assert "Verbs:" in result.output
 
 
-def test_bare_mnem_falls_back_to_hello():
-  """`mnem` with no args prints help/hello."""
+def test_bare_hugr_falls_back_to_hello():
+  """`hugr` with no args prints help/hello."""
   result = CliRunner().invoke(cli, [])
   # Either exit 0 with hello-shaped content, or click's default
   # help. We just want a non-crashing path.
@@ -52,20 +52,20 @@ def test_bare_mnem_falls_back_to_hello():
 def test_hello_accepts_pretty_flag():
   result = CliRunner().invoke(cli, ["hello", "--pretty"])
   assert result.exit_code == 0, result.output
-  assert "mnem" in result.output
+  assert "hugr" in result.output
 
 
 def test_version_accepts_pretty_flag():
   result = CliRunner().invoke(cli, ["version", "--pretty"])
   assert result.exit_code == 0, result.output
-  assert "mnem" in result.output
+  assert "hugr" in result.output
 
 
 def test_doctor_accepts_pretty_flag():
   result = CliRunner().invoke(cli, ["doctor", "--pretty"])
   # doctor exit can be 0 or 1 depending on whether components are on PATH.
   assert result.exit_code in (0, 1)
-  assert "mnem doctor" in result.output
+  assert "hugr doctor" in result.output
 
 
 def test_hello_json_wins_over_pretty_when_both_passed():
@@ -77,7 +77,7 @@ def test_hello_json_wins_over_pretty_when_both_passed():
   json.loads(result.output.strip())  # must parse
 
 
-# --- mnem --version --------------------------------------------------------
+# --- hugr --version --------------------------------------------------------
 
 def test_version_flag_works():
   result = CliRunner().invoke(cli, ["--version"])
@@ -85,13 +85,13 @@ def test_version_flag_works():
   assert __version__ in result.output
 
 
-# --- mnem version subcommand ----------------------------------------------
+# --- hugr version subcommand ----------------------------------------------
 
 def test_version_subcommand_json_shape():
   result = CliRunner().invoke(cli, ["version", "--json"])
   assert result.exit_code == 0, result.output
   payload = json.loads(result.output.strip())
-  assert payload["tool"] == "mnem"
+  assert payload["tool"] == "hugr"
   assert "ok" not in payload  # reserved-key
   assert "components" in payload
   # Every probed binary must appear (components stays keyed by binary
@@ -115,11 +115,11 @@ def test_version_subcommand_json_shape():
 def test_version_subcommand_human():
   result = CliRunner().invoke(cli, ["version"])
   assert result.exit_code == 0
-  assert "mnem" in result.output
+  assert "hugr" in result.output
   assert "Packages:" in result.output
 
 
-# --- mnem doctor ----------------------------------------------------------
+# --- hugr doctor ----------------------------------------------------------
 
 def test_doctor_json_shape():
   result = CliRunner().invoke(cli, ["doctor", "--json"])
@@ -127,7 +127,7 @@ def test_doctor_json_shape():
   # (which would be transient) and not a crash code.
   assert result.exit_code in (0, 1)
   payload = json.loads(result.output.strip())
-  assert payload["tool"] == "mnem"
+  assert payload["tool"] == "hugr"
   assert "ok" not in payload
   assert "components" in payload
   assert isinstance(payload["components"], list)
@@ -139,19 +139,19 @@ def test_doctor_json_shape():
 
 
 def test_doctor_flag_form_works():
-  """`mnem --doctor` is wired alongside `mnem doctor`."""
+  """`hugr --doctor` is wired alongside `hugr doctor`."""
   result = CliRunner().invoke(cli, ["--doctor", "--json"])
   assert result.exit_code in (0, 1)
   payload = json.loads(result.output.strip())
-  assert payload["tool"] == "mnem"
+  assert payload["tool"] == "hugr"
 
 
-# --- mnem query / ingest passthrough --------------------------------------
+# --- hugr query / ingest passthrough --------------------------------------
 
 def test_query_unknown_verb_handled():
-  # `mnem query` with a query body that yaams isn't installed for.
-  # We can't easily install yaams in mnem's venv, so we expect the
-  # passthrough to fail cleanly. The key: don't crash mnem.
+  # `hugr query` with a query body that yaams isn't installed for.
+  # We can't easily install yaams in hugr's venv, so we expect the
+  # passthrough to fail cleanly. The key: don't crash hugr.
   result = CliRunner().invoke(cli, ["query", "anything"])
   # Either succeeded (yaams happened to be on PATH) or failed
   # cleanly with a non-zero exit. Either way we have valid output.

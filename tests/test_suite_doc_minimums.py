@@ -1,6 +1,6 @@
-"""SUITE.md must declare the same minimums as ``mnem._minimums.PACKAGES``.
+"""SUITE.md must declare the same minimums as ``hugr._minimums.PACKAGES``.
 
-The fenced block under "mnem ... requires:" is the human-facing copy of
+The fenced block under "hugr ... requires:" is the human-facing copy of
 the dict. This test parses it and asserts each ``<pkg> >= <version>``
 row matches the source of truth. Drift = failure.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from mnem._minimums import PACKAGES
+from hugr._minimums import PACKAGES
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,7 +21,7 @@ _ROW_RE = re.compile(r"^\s*([a-zA-Z0-9_-]+)\s*>=\s*([0-9][0-9A-Za-z.+-]*)\s*$")
 
 
 def _parse_minimums_block(text: str) -> dict[str, str]:
-  """Find the fenced block that starts with 'mnem ... requires:' and
+  """Find the fenced block that starts with 'hugr ... requires:' and
   return the {package: version} rows it declares.
   """
   lines = text.splitlines()
@@ -43,7 +43,7 @@ def _parse_minimums_block(text: str) -> dict[str, str]:
       continue
     if not in_block:
       continue
-    if "requires:" in stripped and stripped.startswith("mnem"):
+    if "requires:" in stripped and stripped.startswith("hugr"):
       found_header = True
       continue
     if not found_header:
@@ -58,7 +58,7 @@ def test_suite_md_minimums_match_source_of_truth():
   text = SUITE_MD.read_text(encoding="utf-8")
   documented = _parse_minimums_block(text)
 
-  assert documented, "could not find the 'mnem ... requires:' minimums block in SUITE.md"
+  assert documented, "could not find the 'hugr ... requires:' minimums block in SUITE.md"
 
   expected = {pkg: info["minimum"] for pkg, info in PACKAGES.items()}
 

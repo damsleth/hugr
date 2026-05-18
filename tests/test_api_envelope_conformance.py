@@ -1,4 +1,4 @@
-"""Envelope conformance tests for action-class mnem.api wrappers.
+"""Envelope conformance tests for action-class hugr.api wrappers.
 
 CONVENTIONS.md invariant: ok <=> exit_code == 0.
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
-import mnem.api as api
-import mnem.api._passthrough as pt
+import hugr.api as api
+import hugr.api._passthrough as pt
 
 
 def _make_ok_envelope(command: str = "ingest") -> bytes:
@@ -108,7 +108,7 @@ class TestOwaMail:
             "duration_ms": 0.0,
             "stats": {},
             "warnings": [],
-            "error": {"code": "auth_expired", "message": "token expired", "hint": "mnem auth reseed"},
+            "error": {"code": "auth_expired", "message": "token expired", "hint": "hugr auth reseed"},
         }).encode()
 
     def test_success_conformance(self):

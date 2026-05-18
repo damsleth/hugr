@@ -1,4 +1,4 @@
-"""Tests for the source-detection probes used by `mnem init`.
+"""Tests for the source-detection probes used by `hugr init`.
 
 Probes must:
 - never raise (failures become disabled=False findings).
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from mnem.sources import (
+from hugr.sources import (
   ProbeResult,
   is_fresh,
   load_cached,
@@ -81,7 +81,7 @@ def test_run_all_returns_every_probe():
 def test_run_all_swallows_probe_crashes(monkeypatch):
   """A buggy probe must not abort the wizard - it should surface as
   disabled with reason='probe crashed: ...'."""
-  from mnem import sources
+  from hugr import sources
 
   def _broken():
     raise RuntimeError("simulated crash")
@@ -159,11 +159,11 @@ def test_detection_cache_freshness():
 
 
 def test_run_all_cached_reuses_fresh_cache(monkeypatch, tmp_path: Path):
-  monkeypatch.setenv("MNEM_HOME", str(tmp_path))
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path))
   cached = [ProbeResult("cached", True, "from cache")]
   save_cached(cached)
 
-  from mnem import sources
+  from hugr import sources
 
   def fail_run_all():
     raise AssertionError("run_all should not be called")
@@ -174,10 +174,10 @@ def test_run_all_cached_reuses_fresh_cache(monkeypatch, tmp_path: Path):
 
 
 def test_run_all_cached_rescan_ignores_cache(monkeypatch, tmp_path: Path):
-  monkeypatch.setenv("MNEM_HOME", str(tmp_path))
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path))
   save_cached([ProbeResult("cached", True, "from cache")])
 
-  from mnem import sources
+  from hugr import sources
 
   monkeypatch.setattr(sources, "run_all", lambda: [ProbeResult("fresh", True, "rescanned")])
   results = run_all_cached(rescan=True)

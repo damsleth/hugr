@@ -1,11 +1,11 @@
 """F5 - existing-config adoption invariant.
 
 Rule: if a tool's config already exists at any of the canonical search
-paths, ``mnem init`` MUST NOT mutate it. The master config records the
-path it adopted; that is the only mnem write.
+paths, ``hugr init`` MUST NOT mutate it. The master config records the
+path it adopted; that is the only hugr write.
 
 One test per tool (yaams / ledger / owa-piggy). Each fixture writes a
-config file with a distinctive custom property, runs ``mnem init``,
+config file with a distinctive custom property, runs ``hugr init``,
 and asserts:
   1. The file is unchanged byte-for-byte.
   2. The master config records the adopted path.
@@ -16,9 +16,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from mnem.cli import cli
-from mnem.config import read_master
-from mnem.sources import ProbeResult
+from hugr.cli import cli
+from hugr.config import read_master
+from hugr.sources import ProbeResult
 
 
 def _stub_probes() -> list[ProbeResult]:
@@ -36,7 +36,7 @@ def _stub_probes() -> list[ProbeResult]:
 def test_init_does_not_mutate_existing_yaams_config(monkeypatch, tmp_path: Path):
   """Byte-for-byte invariant: existing yaams config is untouched."""
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path / "data"))
 
   # Write a yaams config with a distinctive custom comment + key.
   yaams_cfg = tmp_path / "yaams" / "config.yaml"
@@ -49,7 +49,7 @@ def test_init_does_not_mutate_existing_yaams_config(monkeypatch, tmp_path: Path)
   yaams_cfg.write_bytes(original_content.encode("utf-8"))
   original_bytes = yaams_cfg.read_bytes()
 
-  from mnem.commands import init as init_mod
+  from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
 
@@ -59,18 +59,18 @@ def test_init_does_not_mutate_existing_yaams_config(monkeypatch, tmp_path: Path)
 
   # File must be unchanged byte-for-byte.
   assert yaams_cfg.read_bytes() == original_bytes, (
-    "mnem init mutated the existing yaams config"
+    "hugr init mutated the existing yaams config"
   )
 
   # Master config must record the adopted path.
-  master = read_master(tmp_path / "mnem" / "config.yaml")
+  master = read_master(tmp_path / "hugr" / "config.toml")
   assert master.get("yaams_config") == str(yaams_cfg)
 
 
 def test_init_does_not_mutate_existing_ledger_config(monkeypatch, tmp_path: Path):
   """Byte-for-byte invariant: existing ledger config is untouched."""
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path / "data"))
 
   ledger_cfg = tmp_path / "cognitive-ledger" / "config.yaml"
   ledger_cfg.parent.mkdir(parents=True)
@@ -82,7 +82,7 @@ def test_init_does_not_mutate_existing_ledger_config(monkeypatch, tmp_path: Path
   ledger_cfg.write_bytes(original_content.encode("utf-8"))
   original_bytes = ledger_cfg.read_bytes()
 
-  from mnem.commands import init as init_mod
+  from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
 
@@ -90,17 +90,17 @@ def test_init_does_not_mutate_existing_ledger_config(monkeypatch, tmp_path: Path
   assert result.exit_code == 0, result.output
 
   assert ledger_cfg.read_bytes() == original_bytes, (
-    "mnem init mutated the existing ledger config"
+    "hugr init mutated the existing ledger config"
   )
 
-  master = read_master(tmp_path / "mnem" / "config.yaml")
+  master = read_master(tmp_path / "hugr" / "config.toml")
   assert master.get("ledger_config") == str(ledger_cfg)
 
 
 def test_init_does_not_mutate_existing_owa_piggy_config(monkeypatch, tmp_path: Path):
   """Byte-for-byte invariant: existing owa-piggy config is untouched."""
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path / "data"))
 
   owa_cfg = tmp_path / "owa-piggy" / "profiles.conf"
   owa_cfg.parent.mkdir(parents=True)
@@ -112,7 +112,7 @@ def test_init_does_not_mutate_existing_owa_piggy_config(monkeypatch, tmp_path: P
   owa_cfg.write_bytes(original_content.encode("utf-8"))
   original_bytes = owa_cfg.read_bytes()
 
-  from mnem.commands import init as init_mod
+  from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
 
@@ -120,17 +120,17 @@ def test_init_does_not_mutate_existing_owa_piggy_config(monkeypatch, tmp_path: P
   assert result.exit_code == 0, result.output
 
   assert owa_cfg.read_bytes() == original_bytes, (
-    "mnem init mutated the existing owa-piggy config"
+    "hugr init mutated the existing owa-piggy config"
   )
 
-  master = read_master(tmp_path / "mnem" / "config.yaml")
+  master = read_master(tmp_path / "hugr" / "config.toml")
   assert master.get("owa_piggy_config") == str(owa_cfg)
 
 
 def test_init_does_not_mutate_any_config_when_all_three_exist(monkeypatch, tmp_path: Path):
   """When all three tool configs exist, none of them is touched."""
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  monkeypatch.setenv("MNEM_HOME", str(tmp_path / "data"))
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path / "data"))
 
   configs: dict[str, tuple[Path, bytes]] = {}
 
@@ -145,7 +145,7 @@ def test_init_does_not_mutate_any_config_when_all_three_exist(monkeypatch, tmp_p
     cfg.write_bytes(content)
     configs[tool] = (cfg, content)
 
-  from mnem.commands import init as init_mod
+  from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
 
@@ -154,5 +154,5 @@ def test_init_does_not_mutate_any_config_when_all_three_exist(monkeypatch, tmp_p
 
   for tool, (path, original) in configs.items():
     assert path.read_bytes() == original, (
-      f"mnem init mutated the existing {tool} config"
+      f"hugr init mutated the existing {tool} config"
     )

@@ -1,7 +1,7 @@
-"""mnem-side YAAMS_CONFIG fallback (Plan 05B / review F2 Part B).
+"""hugr-side YAAMS_CONFIG fallback (Plan 05B / review F2 Part B).
 
-When `mnem init` writes ``$XDG_CONFIG_HOME/mnem/yaams/config.yaml``
-and the user has not set ``YAAMS_CONFIG``, mnem forwards the path
+When `hugr init` writes ``$XDG_CONFIG_HOME/hugr/yaams/config.yaml``
+and the user has not set ``YAAMS_CONFIG``, hugr forwards the path
 to yaams-backed child processes via the env var. This unblocks
 first-day flow even when the installed yaams build does not yet
 search the suite-shared config root.
@@ -10,23 +10,23 @@ Contract:
 - Inject only for yaams-backed routes.
 - Never override a user-set ``YAAMS_CONFIG``.
 - Never inject when the user passes ``--config`` explicitly.
-- Never inject when the mnem yaams config does not exist on disk.
+- Never inject when the hugr yaams config does not exist on disk.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-from mnem.cli import _yaams_config_env
+from hugr.cli import _yaams_config_env
 
 
 def _make_cfg(tmp_path: Path) -> Path:
-  """Create both the master mnem config and the yaams config it points
+  """Create both the master hugr config and the yaams config it points
   at. Returns the yaams config path (the one `_yaams_config_env`
   resolves and injects)."""
   yaams_cfg = tmp_path / "yaams" / "config.yaml"
   yaams_cfg.parent.mkdir(parents=True)
   yaams_cfg.write_text("db_path: /tmp/x.db\n")
-  master = tmp_path / "mnem" / "config.yaml"
+  master = tmp_path / "hugr" / "config.toml"
   master.parent.mkdir(parents=True)
   master.write_text(f"version: 1\nyaams_config: {yaams_cfg}\n")
   return yaams_cfg
@@ -56,7 +56,7 @@ def test_does_not_inject_for_non_yaams_routes(monkeypatch, tmp_path: Path):
   for verb in (
     ("ledger", "paths"), ("ledger", "context"),
     ("auth", "status"), ("auth", "profiles"),
-    ("mail", "config"), ("calendar", "profiles"),
+    ("mail", "config"), ("cal", "profiles"),
     ("graph", "schema"), ("drive", "ls"),
   ):
     assert _yaams_config_env(verb) == {}, verb
@@ -77,7 +77,7 @@ def test_does_not_inject_when_user_passes_explicit_config(monkeypatch, tmp_path:
   assert _yaams_config_env(("query", "--config=/elsewhere.yaml")) == {}
 
 
-def test_does_not_inject_when_mnem_config_missing(monkeypatch, tmp_path: Path):
+def test_does_not_inject_when_hugr_config_missing(monkeypatch, tmp_path: Path):
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
   monkeypatch.delenv("YAAMS_CONFIG", raising=False)
   # No _make_cfg() call - config doesn't exist on disk.
@@ -87,7 +87,7 @@ def test_does_not_inject_when_mnem_config_missing(monkeypatch, tmp_path: Path):
 def test_passthrough_run_forwards_extra_env(monkeypatch):
   """End-to-end: passthrough.run threads extra_env through to the
   child subprocess via _stream_subprocess."""
-  from mnem.commands import passthrough
+  from hugr.commands import passthrough
   captured: dict[str, object] = {}
 
   def _fake(argv, *, extra_env=None):
@@ -98,9 +98,9 @@ def test_passthrough_run_forwards_extra_env(monkeypatch):
   monkeypatch.setattr(passthrough, "_stream_subprocess", _fake)
   passthrough.run(
     ["query", "--config", "/tmp/x.yaml", "anything"],
-    extra_env={"YAAMS_CONFIG": "/mnem/cfg.yaml"},
+    extra_env={"YAAMS_CONFIG": "/hugr/cfg.yaml"},
   )
-  assert captured["extra_env"] == {"YAAMS_CONFIG": "/mnem/cfg.yaml"}
+  assert captured["extra_env"] == {"YAAMS_CONFIG": "/hugr/cfg.yaml"}
 
 
 def test_api_passthrough_injects_yaams_config(monkeypatch, tmp_path: Path):
@@ -109,8 +109,8 @@ def test_api_passthrough_injects_yaams_config(monkeypatch, tmp_path: Path):
   monkeypatch.delenv("YAAMS_CONFIG", raising=False)
   cfg = _make_cfg(tmp_path)
 
-  import mnem.api as api
-  import mnem.api._passthrough as passthrough_api
+  import hugr.api as api
+  import hugr.api._passthrough as passthrough_api
 
   captured: dict[str, object] = {}
 
@@ -130,7 +130,7 @@ def test_api_passthrough_injects_yaams_config(monkeypatch, tmp_path: Path):
 
 def test_stream_subprocess_merges_extra_env_into_child(tmp_path: Path):
   """Unit check that the env actually reaches the child."""
-  from mnem.commands import passthrough
+  from hugr.commands import passthrough
   import sys
   script = tmp_path / "show_env.py"
   script.write_text(

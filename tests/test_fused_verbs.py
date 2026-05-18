@@ -5,9 +5,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-import mnem.api as api
-from mnem.api import fused
-from mnem.cli import cli
+import hugr.api as api
+from hugr.api import fused
+from hugr.cli import cli
 
 
 def test_api_ask_fuses_yaams_calendar_and_mail(monkeypatch):
@@ -18,14 +18,14 @@ def test_api_ask_fuses_yaams_calendar_and_mail(monkeypatch):
     return 0, json.dumps({"tool": args[0], "items": [{"id": "1"}]}).encode()
 
   monkeypatch.setattr(fused, "_call", fake_call)
-  doc = api.ask("easter dinner")
+  doc = api.recall("easter dinner")
 
-  assert doc["command"] == "ask"
+  assert doc["command"] == "recall"
   assert [item["source"] for item in doc["sources"]] == ["yaams", "owa-cal", "owa-mail"]
   assert len(doc["citations"]) == 3
   assert calls == [
     ["query", "easter dinner"],
-    ["calendar", "events", "--search", "easter dinner"],
+    ["cal", "events", "--search", "easter dinner"],
     ["mail", "search", "easter dinner"],
   ]
 
@@ -57,7 +57,7 @@ def test_api_inbox_queries_four_sources(monkeypatch):
   assert doc["command"] == "inbox"
   assert calls == [
     ["mail", "list", "--unread"],
-    ["calendar", "events", "--today"],
+    ["cal", "events", "--today"],
     ["ledger", "loops"],
     ["promote", "list"],
   ]
@@ -90,20 +90,20 @@ def test_api_remember_returns_action_envelope(monkeypatch):
 
 def test_ask_cli_prints_json(monkeypatch, tmp_path: Path):
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  cfg = tmp_path / "mnem" / "config.yaml"
+  cfg = tmp_path / "hugr" / "config.toml"
   cfg.parent.mkdir(parents=True)
   cfg.write_text("version: 1\n")
 
-  monkeypatch.setattr(api, "ask", lambda question, **_: {"tool": "mnem", "command": "ask", "query": question})
+  monkeypatch.setattr(api, "recall", lambda question, **_: {"tool": "hugr", "command": "recall", "query": question})
 
-  result = CliRunner().invoke(cli, ["ask", "what", "changed"])
+  result = CliRunner().invoke(cli, ["recall", "what", "changed"])
   assert result.exit_code == 0
   assert json.loads(result.output)["query"] == "what changed"
 
 
 def test_ask_cli_first_run_hint(monkeypatch, tmp_path: Path):
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  result = CliRunner().invoke(cli, ["ask", "anything"])
+  result = CliRunner().invoke(cli, ["recall", "anything"])
   assert result.exit_code == 4
   combined = result.output + (result.stderr_bytes or b"").decode("utf-8", "ignore")
-  assert "mnem init" in combined
+  assert "hugr init" in combined

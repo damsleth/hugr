@@ -1,4 +1,4 @@
-"""Subprocess handshake test for ``mnem mcp --stdio``.
+"""Subprocess handshake test for ``hugr mcp --stdio``.
 
 Spawns the server as a child process, sends JSON-RPC messages over
 stdin/stdout, and validates the responses.
@@ -61,10 +61,10 @@ def _recv(q: queue.Queue, timeout: float = TIMEOUT) -> dict:
 
 @pytest.fixture
 def mcp_proc():
-  """Start ``mnem mcp --stdio`` as a subprocess, yield (proc, reader_queue), then terminate."""
+  """Start ``hugr mcp --stdio`` as a subprocess, yield (proc, reader_queue), then terminate."""
   python = sys.executable
   proc = subprocess.Popen(
-    [python, "-m", "mnem", "mcp", "--stdio"],
+    [python, "-m", "hugr", "mcp", "--stdio"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -100,7 +100,7 @@ def test_initialize_handshake(mcp_proc):
 
 
 def test_tools_list_contains_expected(mcp_proc):
-  """After initialize, tools/list must contain mnem.doctor and mnem.version."""
+  """After initialize, tools/list must contain hugr.doctor and hugr.version."""
   proc, q = mcp_proc
 
   # --- initialize ---
@@ -135,8 +135,8 @@ def test_tools_list_contains_expected(mcp_proc):
   tools = result.get("tools", [])
   assert len(tools) > 0, "tools/list returned no tools"
   tool_names = {t["name"] for t in tools}
-  assert "mnem.doctor" in tool_names, f"mnem.doctor not in tool list: {tool_names}"
-  assert "mnem.version" in tool_names, f"mnem.version not in tool list: {tool_names}"
+  assert "hugr.doctor" in tool_names, f"hugr.doctor not in tool list: {tool_names}"
+  assert "hugr.version" in tool_names, f"hugr.version not in tool list: {tool_names}"
 
 
 def test_tools_call_accepts_empty_passthrough_args(mcp_proc):
@@ -164,7 +164,7 @@ def test_tools_call_accepts_empty_passthrough_args(mcp_proc):
     "id": 2,
     "method": "tools/call",
     "params": {
-      "name": "mnem.ledger.paths",
+      "name": "hugr.ledger.paths",
       "arguments": {"args": []},
     },
   })

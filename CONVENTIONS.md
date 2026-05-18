@@ -7,7 +7,7 @@ binding spec for every binary in the suite.
 
 This document defines the CLI contract that `yaams`, `ledger`,
 `ledger-obsidian`, `sheep`, `owa-piggy`, the eight `owa-*` tools, and
-`mnem` itself all conform to. Skill authors and automation can rely
+`hugr` itself all conform to. Skill authors and automation can rely
 on it.
 
 ## Output classes
@@ -71,14 +71,14 @@ disagrees is broken and fails its own `--doctor` check.
 
 **For callers**: shell scripts (the common case) may branch on exit
 code alone - that is always present and always correct. JSON-aware
-callers (`mnem`, skills, automation) parse the envelope for
+callers (`hugr`, skills, automation) parse the envelope for
 structured detail and SHOULD validate that `ok` agrees with the
 exit code; a disagreement is a bug to report, not state to act on.
 
 ## Streaming schema (action commands with `--json`)
 
 Long-running action commands (`yaams ingest`, `ledger sleep index`,
-`mnem ingest`) MAY emit progress as a stream when `--json` is
+`hugr ingest`) MAY emit progress as a stream when `--json` is
 passed. The framing is **newline-delimited JSON (NDJSON)** on stdout,
 one object per line, each object carrying an explicit `type` field:
 
@@ -119,7 +119,7 @@ so JSON-aware callers always get parseable JSON:
   "error": {
     "code": "auth_expired",
     "message": "M365 access token expired",
-    "hint": "Run: mnem auth setup"
+    "hint": "Run: hugr auth setup"
   }
 }
 ```
@@ -154,7 +154,7 @@ The justification is consumer ergonomics across the suite:
   terminal `{type:"result"}` line for streaming actions), branch
   on the reserved `ok` key. No need to interleave stdout and
   stderr, no precedence rules, no buffering races.
-- **Pipelines work.** `mnem mail messages --json | jq` handles
+- **Pipelines work.** `hugr mail messages --json | jq` handles
   both success and failure because the envelope is in the pipe.
   Stderr drains to the terminal regardless.
 - **Streaming stays coherent.** Action commands emit
@@ -196,7 +196,7 @@ match wins:
 
 1. Explicit `--config <path>` flag.
 2. Tool-specific env var (see scope table below).
-3. `$XDG_CONFIG_HOME/mnem/<tool>/config.yaml` (new shared root).
+3. `$XDG_CONFIG_HOME/hugr/<tool>/config.yaml` (new shared root).
 4. `$XDG_CONFIG_HOME/<tool>/config.yaml` (legacy per-tool root).
 5. `./config.yaml` (development-only fallback - takes effect only
    when no global config exists, so a user with a global install is
@@ -207,7 +207,7 @@ match wins:
 ### Env var scope
 
 Each var resolves only the binaries it owns. This is what direct-CLI
-/ `mnem` parity hinges on:
+/ `hugr` parity hinges on:
 
 | Env var | Binaries it configures |
 | --- | --- |
@@ -215,11 +215,11 @@ Each var resolves only the binaries it owns. This is what direct-CLI
 | `LEDGER_CONFIG` | `ledger`, `ledger-obsidian`, `sheep` (all three read the same ledger config tree) |
 | `OWA_PIGGY_CONFIG` | `owa-piggy` only (auth broker has its own config; tokens live in OS keychain regardless) |
 | `OWA_CONFIG` | `owa`, `owa-cal`, `owa-mail`, `owa-graph`, `owa-doctor`, `owa-people`, `owa-sched`, `owa-drive` (the read/write CLIs; they share one config) |
-| `MNEM_CONFIG` | `mnem` itself (router-level settings; does NOT override the per-tool vars above) |
+| `HUGR_CONFIG` | `hugr` itself (router-level settings; does NOT override the per-tool vars above) |
 
-Rule: a per-tool env var only affects that tool's binaries. `mnem`
+Rule: a per-tool env var only affects that tool's binaries. `hugr`
 invocations of a tool inherit the user's environment, so setting
-`YAAMS_CONFIG` makes both `yaams query` and `mnem query` resolve to
+`YAAMS_CONFIG` makes both `yaams query` and `hugr query` resolve to
 the same config. No tool reads another tool's env var.
 
 ### Data path resolution
@@ -227,11 +227,11 @@ the same config. No tool reads another tool's env var.
 Per-tool data resolution order, separate from config:
 
 1. Explicit value in config (`db_path`, `notes_dir`, etc.).
-2. `MNEM_HOME/<tool>/` if `MNEM_HOME` is set (e.g.
-   `$MNEM_HOME/yaams/data.db`).
+2. `HUGR_HOME/<tool>/` if `HUGR_HOME` is set (e.g.
+   `$HUGR_HOME/yaams/data.db`).
 3. Tool-specific default (e.g. `~/yaams/data.db`).
 
-Direct CLI invocation and `mnem` invocation MUST resolve to the same
+Direct CLI invocation and `hugr` invocation MUST resolve to the same
 config and data paths given the same environment. Each tool's test
 suite gains an integration check that verifies this.
 
@@ -250,25 +250,25 @@ Every JSON-capable binary in the suite MUST expose:
   config and data paths, auth state (where applicable), and
   `findings[]` with `{id, severity, message, hint}`. Exit code
   follows the standard table (0 ok, 1 user-fixable, 2 transient, 3
-  auth). `mnem doctor` aggregates these documents.
+  auth). `hugr doctor` aggregates these documents.
 
-## mnem fused result documents
+## hugr fused result documents
 
-`mnem` adds fused verbs above the direct tool passthroughs. These
+`hugr` adds fused verbs above the direct tool passthroughs. These
 commands are data-class unless explicitly documented as action-class:
 
-- `mnem ask "<question>"` returns a result document with `sources[]`,
+- `hugr ask "<question>"` returns a result document with `sources[]`,
   `citations[]`, and `warnings[]`.
-- `mnem find <kind> <query>` returns a typed `source` result for the
+- `hugr find <kind> <query>` returns a typed `source` result for the
   selected backing tool.
-- `mnem inbox` returns `sources[]` for unread mail, today's calendar
+- `hugr inbox` returns `sources[]` for unread mail, today's calendar
   events, ledger loops, and YAAMS promotion candidates.
-- `mnem remember "<fact>"` is action-class and returns an action
+- `hugr remember "<fact>"` is action-class and returns an action
   envelope with `ok`, `exit_code`, `error`, and the child ledger result.
-- `mnem init --quick` is action-class and returns the standard action
-  envelope under `--json`; bare `mnem init` remains interactive and
+- `hugr init --quick` is action-class and returns the standard action
+  envelope under `--json`; bare `hugr init` remains interactive and
   rejects `--json`.
-- `mnem doctor --fix --yes` can apply bounded self-healing fixes and
+- `hugr doctor --fix --yes` can apply bounded self-healing fixes and
   reports them in `fixes_applied[]`. Without `--yes`, fixes are listed
   with hints but not applied.
 
@@ -283,7 +283,7 @@ top-level document parseable for TUI, web, and MCP surfaces.
 {
   "tool": "yaams",
   "version": "0.2.0",
-  "config_path": "/Users/cj/.config/mnem/yaams/config.yaml",
+  "config_path": "/Users/cj/.config/hugr/yaams/config.yaml",
   "data_path": "/Users/cj/yaams/data.db",
   "auth": { "ok": true, "profiles": [] },
   "models": { "embedding": "BAAI/bge-m3", "available": true },
@@ -324,13 +324,13 @@ Enforcement stack:
 4. `<tool> --doctor` runs the same fixture set against the installed
    binary as a smoke test.
 
-`mnem` applies its **own** redaction pass to captured stderr before
-writing `~/.local/state/mnem/last-error.log` - defense in depth on
+`hugr` applies its **own** redaction pass to captured stderr before
+writing `~/.local/state/hugr/last-error.log` - defense in depth on
 top of the tool-side redactor.
 
 ## YAAMS-specific contracts
 
-Before `mnem` exists (i.e. by end of Phase 2b):
+Before `hugr` exists (i.e. by end of Phase 2b):
 
 - `yaams query` accepts `--json` (alias for `--format json`) and
   `--pretty` (alias for `--format text`).
@@ -354,8 +354,8 @@ watermarks, and adapter code do not change. The CLI surface accepts
   rewrite internally.
 - `config.yaml` accepts an `ingest.ledger:` block as an alias for
   `ingest.tier2_ledger:`; both keys resolve to the same adapter.
-- `mnem query --tier=ledger` is a **passthrough** to `yaams query
-  --tier=ledger`. (Earlier drafts had mnem rewrite `--tier ledger`
+- `hugr query --tier=ledger` is a **passthrough** to `yaams query
+  --tier=ledger`. (Earlier drafts had hugr rewrite `--tier ledger`
   into `--source ledger`; that rewrite became unnecessary in Phase
   2b when yaams gained native `--tier` support. The router stays as
   a thin argv passthrough per the "argument mapping, no business
@@ -569,24 +569,24 @@ to the named `owa-<tool>` binary. It MUST itself implement
 `--version` and `--doctor` per the data-class spec. All other
 behavior is inherited from the dispatched binary.
 
-### `mnem`
+### `hugr`
 
 Defined here for completeness; lands in Phase 3a/3b.
 
 | Command | Class | Mods | `-j` | `-p` | Success stdout | Failure stdout | Stderr | Exit codes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `mnem --version` | data | - | req | req | raw `{tool,version,observed[]}` | envelope | clean | 0,1 |
-| `mnem hello` | data | - | req | req | raw `{verbs[],examples[]}` | envelope | clean | 0,1 |
-| `mnem doctor` | data | - | req | req | doctor JSON (aggregated) | envelope | clean | 0,1,2,3 |
-| `mnem version` | data | - | req | req | raw `{tool,version,observed[]}` | envelope | clean | 0,1 |
-| `mnem init` | interactive | - | reject | n/a | human | n/a | human | 0,1 |
-| `mnem query` | data | - | req | req | raw answer doc | envelope | clean | 0,1,2,3,4 |
-| `mnem ingest` | action | - | req | req | ndjson+result | envelope | clean | 0,1,2,3,5 |
-| `mnem promote review` | interactive | - | reject | n/a | human | n/a | human | 0,1 |
-| `mnem ledger ...` | (inherits from `ledger` subcommand) |
-| `mnem mail ...` | (inherits from `owa-mail` subcommand) |
-| `mnem calendar ...` | (inherits from `owa-cal` subcommand) |
-| `mnem auth ...` | (inherits from `owa-piggy` subcommand) |
+| `hugr --version` | data | - | req | req | raw `{tool,version,observed[]}` | envelope | clean | 0,1 |
+| `hugr hello` | data | - | req | req | raw `{verbs[],examples[]}` | envelope | clean | 0,1 |
+| `hugr doctor` | data | - | req | req | doctor JSON (aggregated) | envelope | clean | 0,1,2,3 |
+| `hugr version` | data | - | req | req | raw `{tool,version,observed[]}` | envelope | clean | 0,1 |
+| `hugr init` | interactive | - | reject | n/a | human | n/a | human | 0,1 |
+| `hugr query` | data | - | req | req | raw answer doc | envelope | clean | 0,1,2,3,4 |
+| `hugr ingest` | action | - | req | req | ndjson+result | envelope | clean | 0,1,2,3,5 |
+| `hugr promote review` | interactive | - | reject | n/a | human | n/a | human | 0,1 |
+| `hugr ledger ...` | (inherits from `ledger` subcommand) |
+| `hugr mail ...` | (inherits from `owa-mail` subcommand) |
+| `hugr calendar ...` | (inherits from `owa-cal` subcommand) |
+| `hugr auth ...` | (inherits from `owa-piggy` subcommand) |
 
 ## Status
 
@@ -597,4 +597,4 @@ Phase 2a: signed off, table above is binding. Audit results in
 
 Phase 2b/2c: tools migrate to conformance.
 
-Phase 3a/3b: `mnem` ships against this contract.
+Phase 3a/3b: `hugr` ships against this contract.

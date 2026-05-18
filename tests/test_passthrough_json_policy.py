@@ -1,6 +1,6 @@
 """Per-mapping JSON policy in passthrough (Plan 01 / review F1+F4).
 
-mnem used to unconditionally append --json to every non-interactive
+hugr used to unconditionally append --json to every non-interactive
 routed argv, which broke OWA tools (`owa-mail config`, `owa-cal profiles`,
 ...) because their parsers reject --json as an unknown flag - OWA is
 JSON-by-default and only honors --json on the top-level --doctor probe.
@@ -12,7 +12,7 @@ These tests pin the new contract:
   - none    -> argv stays clean (used by rewrites that produce their
                own final shape, e.g. `ledger context --format json`).
 
-Plus the top-level `mnem --json <interactive verb>` rejection so the
+Plus the top-level `hugr --json <interactive verb>` rejection so the
 child setup flow does not launch under a machine invocation.
 """
 from __future__ import annotations
@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from mnem.commands import passthrough
-from mnem.router import TABLE, lookup
+from hugr.commands import passthrough
+from hugr.router import TABLE, lookup
 
 
 def _spy_stream(monkeypatch):
@@ -52,7 +52,7 @@ def _spy_interactive(monkeypatch):
 # --- router-side policy contract -----------------------------------------
 
 def test_owa_mappings_are_native_policy():
-  for verb in (("mail",), ("calendar",), ("graph",), ("people",), ("schedule",), ("drive",)):
+  for verb in (("mail",), ("cal",), ("graph",), ("people",), ("schedule",), ("drive",)):
     mapping, _ = lookup(list(verb) + ["dummy"])
     assert mapping.json_policy == "native", verb
 
@@ -88,7 +88,7 @@ def test_mail_config_does_not_inject_json(monkeypatch, tmp_path: Path):
 
 def test_calendar_profiles_does_not_inject_json(monkeypatch, tmp_path: Path):
   captured = _spy_stream(monkeypatch)
-  passthrough.run(["calendar", "profiles"])
+  passthrough.run(["cal", "profiles"])
   assert captured["argv"][0] == "owa-cal"
   assert "--json" not in captured["argv"]
 
@@ -143,7 +143,7 @@ def test_top_level_json_rejects_auth_setup_before_launch(monkeypatch, capsys):
 
 
 def test_top_level_json_without_interactive_proceeds(monkeypatch):
-  """`mnem --json mail config` should still work - mail is native, not
+  """`hugr --json mail config` should still work - mail is native, not
   interactive."""
   captured = _spy_stream(monkeypatch)
   rc = passthrough.run(["mail", "config"], top_level_json=True)

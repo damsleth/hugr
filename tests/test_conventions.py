@@ -1,11 +1,11 @@
-"""Tests for mnem/conventions.py - mirrors the sibling test files."""
+"""Tests for hugr/conventions.py - mirrors the sibling test files."""
 from __future__ import annotations
 
 import io
 import json
 
-from mnem import __version__
-from mnem.conventions import (
+from hugr import __version__
+from hugr.conventions import (
   DoctorFinding,
   DoctorPayload,
   EXIT_OK,
@@ -48,7 +48,7 @@ def test_redact_handles_non_string():
 
 def test_action_envelope_shape():
   env = action_envelope(command="ingest", ok=True, stats={"sources": 3})
-  assert env["tool"] == "mnem"
+  assert env["tool"] == "hugr"
   assert env["version"] == __version__
   assert env["command"] == "ingest"
   assert env["ok"] is True
@@ -73,7 +73,7 @@ def test_emit_action_one_line():
 
 def test_data_error_shape():
   err = data_error(command="x", code="c", message="m", hint="h")
-  assert err["tool"] == "mnem"
+  assert err["tool"] == "hugr"
   assert err["ok"] is False
   assert err["error"]["hint"] == "h"
 
@@ -110,18 +110,18 @@ def test_stream_result_carries_envelope():
 
 def test_doctor_payload_minimal():
   d = DoctorPayload().to_dict()
-  assert d["tool"] == "mnem"
+  assert d["tool"] == "hugr"
   assert d["findings"] == []
 
 
 def test_doctor_payload_full():
   d = DoctorPayload(
-    config_path="/etc/mnem/config.yaml",
+    config_path="/etc/hugr/config.toml",
     findings=[
       DoctorFinding(id="x", severity="error", message="m", hint="fix it"),
     ],
   ).to_dict()
-  assert d["config_path"] == "/etc/mnem/config.yaml"
+  assert d["config_path"] == "/etc/hugr/config.toml"
   assert d["findings"][0]["severity"] == "error"
   assert d["findings"][0]["hint"] == "fix it"
 
