@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="hugr.png" alt="hugr logo" style="max-height: 400px;" height="400">
+  <img src="hugr.png" alt="hugr logo" style="max-height: 200px;" height="200">
 </p>
 
 # ᚼᚢᚴᛦ - (/ˈhuɡr/)
