@@ -46,6 +46,7 @@ def test_init_quick_json_writes_master_and_yaams_config(monkeypatch, tmp_path: P
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all_cached", lambda: _stub_probes())
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
   import shutil
   monkeypatch.setattr(shutil, "which", lambda _name: None)
 
@@ -176,8 +177,11 @@ def test_init_writes_master_config_pointing_at_canonical_yaams(monkeypatch, tmp_
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
-  # Two prompts: continue?, generate yaams config?
-  result = CliRunner().invoke(cli, ["init"], input="y\ny\n")
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
+  # Prompts: continue?, generate yaams config?, run ledger init?,
+  # run owa-piggy setup? (latter two declined - greenfield ledger/owa
+  # not under test here).
+  result = CliRunner().invoke(cli, ["init"], input="y\ny\nn\nn\n")
   assert result.exit_code == 0, result.output
 
   master = tmp_path / "hugr" / "config.toml"
@@ -206,7 +210,9 @@ def test_init_reuses_existing_yaams_config_in_place(monkeypatch, tmp_path: Path)
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
-  result = CliRunner().invoke(cli, ["init"], input="y\n")
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
+  # continue?, run ledger init? (declined), run owa-piggy setup? (declined)
+  result = CliRunner().invoke(cli, ["init"], input="y\nn\nn\n")
   assert result.exit_code == 0, result.output
 
   # hugr did NOT clobber the existing yaams config.
@@ -229,6 +235,7 @@ def test_init_records_ledger_pointer_when_canonical_exists(monkeypatch, tmp_path
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
   result = CliRunner().invoke(cli, ["init"], input="y\ny\n")
   assert result.exit_code == 0, result.output
   parsed = read_master(tmp_path / "hugr" / "config.toml")
@@ -242,7 +249,9 @@ def test_init_leaves_ledger_pointer_unset_when_no_canonical(monkeypatch, tmp_pat
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
-  result = CliRunner().invoke(cli, ["init"], input="y\ny\n")
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
+  # continue?, generate yaams?, run ledger init? (no), run owa setup? (no)
+  result = CliRunner().invoke(cli, ["init"], input="y\ny\nn\nn\n")
   assert result.exit_code == 0, result.output
   parsed = read_master(tmp_path / "hugr" / "config.toml")
   # ledger / owa-piggy pointers should be absent (commented out) since

@@ -4,25 +4,27 @@ Output class: interactive (rejects --json with a pointer to a
 machine-readable alternative; the wizard never makes sense in a
 machine context because it prompts and writes files).
 
-Behavior (rewritten 2026-05-13):
+Behavior:
 
 1. Confirm intent. Show what will be created and where.
 2. Detect sources via hugr.sources.run_all().
-3. Resolve each tool's config:
-   - ``yaams``: if ``~/.config/yaams/config.yaml`` exists, reuse in
-     place. Else (greenfield) generate one from probe results and
-     write it to the canonical location (not a private hugr copy).
-   - ``cognitive-ledger``: if ``~/.config/cognitive-ledger/config.yaml``
-     exists, record the path. Else print a hint to run ``ledger init``
-     and leave the pointer empty.
-   - ``owa-piggy``: if ``~/.config/owa-piggy/profiles.conf`` exists,
-     record the path. Else print a hint to run ``owa-piggy setup``
-     and leave the pointer empty.
+3. Per component (yaams, cognitive-ledger, owa-piggy, owa-tools),
+   classify into one of three states and prompt accordingly:
+   - State A (binary missing): offer `brew install
+     damsleth/tap/<formula>` [Y/n/skip]. On Y, install or abort the
+     whole wizard if brew fails. On n/skip, defer.
+   - State B (installed but no config): offer to chain the tool's
+     own setup verb (yaams writes a generated config; `ledger init`;
+     `owa-piggy setup --profile <alias> --email <email>` with
+     interactive prompts for alias + email). owa-tools has no
+     config of its own, so state B does not apply.
+   - State C (installed + configured): reuse in place, no prompt.
 4. Write the master ``$XDG_CONFIG_HOME/hugr/config.toml`` with the
    resolved tool paths and hugr-specific settings.
 5. Run ``yaams setup``, ``yaams init-db``, ``yaams ingest --dry-run``
    if yaams is on PATH.
-6. Print three suggested next commands.
+6. Print a deferred-items summary (if any) and three suggested next
+   commands.
 
 Idempotent: re-running probes again. The master config is overwritten
 unless ``--force`` is omitted *and* the existing content is
@@ -189,6 +191,76 @@ def _yes(prompt: str, default: bool = True) -> bool:
   return ans in ("y", "yes")
 
 
+def _three_way(prompt: str) -> str:
+  """Y/n/skip prompt. Default Y. Returns 'yes', 'no', or 'skip'."""
+  ans = click.prompt(f"{prompt} [Y/n/skip]", default="", show_default=False).strip().lower()
+  if not ans:
+    return "yes"
+  if ans in ("y", "yes"):
+    return "yes"
+  if ans in ("s", "skip"):
+    return "skip"
+  return "no"
+
+
+class BrewInstallFailed(Exception):
+  """Raised when `brew install ...` returns nonzero. Caught at the
+  top of `run()` to abort the wizard with a clean message."""
+
+  def __init__(self, formula: str, returncode: int) -> None:
+    super().__init__(f"brew install damsleth/tap/{formula} exited {returncode}")
+    self.formula = formula
+    self.returncode = returncode
+
+
+_DEFERRED: list[str] = []
+
+
+def _reset_deferred() -> None:
+  _DEFERRED.clear()
+
+
+def _defer(message: str) -> None:
+  _DEFERRED.append(message)
+
+
+def _prompt_install(binary: str, formula: str) -> bool:
+  """State-A handling: if `binary` is missing, prompt to install.
+
+  Returns True if the binary is on PATH after this call (already was,
+  or brew install succeeded). Returns False if the user declined or
+  skipped. Raises BrewInstallFailed if brew exited nonzero.
+  """
+  if shutil.which(binary):
+    return True
+
+  ans = _three_way(
+    f"\n{binary} not installed. Install via `brew install damsleth/tap/{formula}`?"
+  )
+  if ans == "no":
+    cmd = f"brew install damsleth/tap/{formula}"
+    click.echo(f"  deferred. To install later: {cmd}")
+    _defer(f"{binary:<14}  run: {cmd}")
+    return False
+  if ans == "skip":
+    _defer(f"{binary:<14}  run: brew install damsleth/tap/{formula}")
+    return False
+
+  click.echo(f"  running: brew install damsleth/tap/{formula}")
+  argv = ["brew", "install", f"damsleth/tap/{formula}"]
+  try:
+    result = subprocess.run(argv, capture_output=False)
+  except FileNotFoundError as exc:
+    raise BrewInstallFailed(formula, 127) from exc
+  if result.returncode != 0:
+    raise BrewInstallFailed(formula, result.returncode)
+  if not shutil.which(binary):
+    # brew claimed success but the binary still isn't on PATH; treat
+    # as a failure rather than silently continue with state B.
+    raise BrewInstallFailed(formula, -1)
+  return True
+
+
 def _print_probe_summary(probes: list[ProbeResult]) -> None:
   click.echo("\nSources detected:")
   for p in probes:
@@ -242,17 +314,21 @@ def _resolve_yaams_config(probes: list[ProbeResult], *, force: bool) -> Path | N
   """Decide which yaams config path to record in the master config.
 
   Returns the resolved path, or None if the user declined to set one.
-  Side effects: may write ``~/.config/yaams/config.yaml`` in the
-  greenfield case.
+  Side effects: may run `brew install damsleth/tap/yaams` and may
+  write ``~/.config/yaams/config.yaml`` in the greenfield case.
   """
+  if not _prompt_install("yaams", "yaams"):
+    return None
+
   canonical = canonical_yaams_config()
   if canonical.is_file():
-    click.echo(f"\n+ yaams config already at {canonical}; reusing in place.")
+    click.echo(f"+ yaams config already at {canonical}; reusing in place.")
     return canonical
 
-  click.echo(f"\n. no yaams config at {canonical}.")
+  click.echo(f". no yaams config at {canonical}.")
   if not _yes("Generate one now from detected sources?", default=True):
     click.echo("  skipped; you can run `hugr init` again after creating one.")
+    _defer("yaams         run: hugr init (then choose Y to generate config)")
     return None
   canonical.parent.mkdir(parents=True, exist_ok=True)
   canonical.write_text(_build_yaams_config(probes), encoding="utf-8")
@@ -261,27 +337,66 @@ def _resolve_yaams_config(probes: list[ProbeResult], *, force: bool) -> Path | N
 
 
 def _resolve_ledger_config() -> Path | None:
+  if not _prompt_install("ledger", "cognitive-ledger"):
+    return None
+
   canonical = canonical_ledger_config()
   if canonical.is_file():
     click.echo(f"+ cognitive-ledger config at {canonical}; reusing in place.")
     return canonical
-  click.echo(
-    f". no cognitive-ledger config at {canonical}.\n"
-    "    hint: `ledger init --root <root>` to create one, then re-run `hugr init`."
-  )
-  return None
+
+  click.echo(f". no cognitive-ledger config at {canonical}.")
+  if not _yes("Run `ledger init` now?", default=True):
+    click.echo("  deferred. To set up later: ledger init")
+    _defer("ledger        run: ledger init")
+    return None
+  ledger = shutil.which("ledger")
+  if not ledger:
+    _defer("ledger        run: ledger init")
+    return None
+  _run_step("ledger init", [ledger, "init"])
+  return canonical if canonical.is_file() else None
 
 
 def _resolve_owa_piggy_config() -> Path | None:
+  if not _prompt_install("owa-piggy", "owa-piggy"):
+    return None
+
   canonical = canonical_owa_piggy_config()
   if canonical.is_file():
     click.echo(f"+ owa-piggy config at {canonical}; reusing in place.")
     return canonical
-  click.echo(
-    f". no owa-piggy config at {canonical}.\n"
-    "    hint: `owa-piggy setup --profile <alias> --email <addr>` to create one."
+
+  click.echo(f". no owa-piggy config at {canonical}.")
+  if not _yes("Run `owa-piggy setup` now (prompts for alias + email)?", default=True):
+    click.echo("  deferred. To set up later: owa-piggy setup --profile <alias> --email <email>")
+    _defer("owa-piggy     run: owa-piggy setup --profile <alias> --email <email>")
+    return None
+
+  alias = click.prompt("  profile alias (e.g. work)", default="").strip()
+  email = click.prompt("  email address", default="").strip()
+  if not alias or not email:
+    click.echo("  alias and email are both required; skipping owa-piggy setup.")
+    _defer("owa-piggy     run: owa-piggy setup --profile <alias> --email <email>")
+    return None
+  owa_piggy = shutil.which("owa-piggy")
+  if not owa_piggy:
+    _defer("owa-piggy     run: owa-piggy setup --profile <alias> --email <email>")
+    return None
+  _run_step(
+    "owa-piggy setup",
+    [owa_piggy, "setup", "--profile", alias, "--email", email],
   )
-  return None
+  return canonical if canonical.is_file() else None
+
+
+def _resolve_owa_tools_presence() -> bool:
+  """owa-tools has no config of its own; just make sure the `owa`
+  binary is on PATH (or installed via brew). Returns True if usable."""
+  if not _prompt_install("owa", "owa-tools"):
+    return False
+  click.echo("+ owa-tools on PATH.")
+  return True
 
 
 def quick_bootstrap_doc(*, force: bool = False, with_models: bool = False) -> dict[str, Any]:
@@ -420,12 +535,15 @@ def run(
   click.echo(f"hugr init v{_hugr_version()}")
   click.echo("This wizard:")
   click.echo("  1. probes for ingest sources")
-  click.echo(f"  2. writes {master}")
-  click.echo(f"  3. uses {data} as the data root (override with HUGR_HOME)")
-  click.echo("  4. runs yaams setup, init-db, and ingest --dry-run")
+  click.echo("  2. offers to install any missing components via brew")
+  click.echo("  3. offers to run each component's own setup")
+  click.echo(f"  4. writes {master}")
+  click.echo(f"  5. uses {data} as the data root (override with HUGR_HOME)")
   if not _yes("\nContinue?"):
     click.echo("Aborted.")
     return 0
+
+  _reset_deferred()
 
   # --- Detect ---------------------------------------------------------
   probes = run_all()
@@ -435,9 +553,19 @@ def run(
   config_dir().mkdir(parents=True, exist_ok=True)
   data.mkdir(parents=True, exist_ok=True)
 
-  yaams_cfg = _resolve_yaams_config(probes, force=force)
-  ledger_cfg = _resolve_ledger_config()
-  owa_cfg = _resolve_owa_piggy_config()
+  try:
+    yaams_cfg = _resolve_yaams_config(probes, force=force)
+    ledger_cfg = _resolve_ledger_config()
+    owa_cfg = _resolve_owa_piggy_config()
+    _resolve_owa_tools_presence()
+  except BrewInstallFailed as exc:
+    click.echo(
+      f"\nbrew install damsleth/tap/{exc.formula} failed (exit {exc.returncode}).\n"
+      "Aborting `hugr init` - no master config was written.\n"
+      "Check your brew tap, network, and re-run `hugr init` once the install works.",
+      err=True,
+    )
+    return 5  # EXIT_RUNTIME per CONVENTIONS.md
 
   # --- Write master config -------------------------------------------
   body = render_master(
@@ -470,8 +598,15 @@ def run(
       _run_step("yaams init-db", [yaams, "init-db", "--config", str(yaams_cfg)])
       _run_step("yaams ingest --dry-run", [yaams, "ingest", "--dry-run", "--config", str(yaams_cfg)])
 
-  click.echo("\nDone. Suggested next commands:")
+  click.echo("\nhugr is configured.")
+  if _DEFERRED:
+    click.echo("\nDeferred:")
+    for line in _DEFERRED:
+      click.echo(f"  {line}")
+    click.echo("\nRe-run `hugr init` after handling the above to wire them up.")
+
+  click.echo("\nNext:")
+  click.echo("  $ hugr doctor")
   click.echo("  $ hugr ingest")
-  click.echo('  $ hugr query "what did we decide about ..."')
-  click.echo("  $ hugr hello")
+  click.echo('  $ hugr recall "<question>"')
   return 0

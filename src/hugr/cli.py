@@ -157,8 +157,27 @@ def cli(ctx: click.Context, doctor: bool, as_json_top: bool, verbose: bool) -> N
     from hugr.commands.doctor import run as doctor_run
     ctx.exit(doctor_run(as_json_top))
   if ctx.invoked_subcommand is None:
+    if _first_run_should_offer_init(as_json_top):
+      master = master_config_path()
+      click.echo(f"No hugr config found at {master}.")
+      if click.confirm("Run `hugr init` now?", default=True):
+        from hugr.commands.init import run as init_run
+        ctx.exit(init_run(as_json=False))
     from hugr.commands.hello import run as hello_run
     ctx.exit(hello_run(as_json_top))
+
+
+def _first_run_should_offer_init(as_json_top: bool) -> bool:
+  """Return True iff bare `hugr` should offer to launch the wizard.
+
+  Conditions: not in JSON mode, stdin+stdout are a TTY (so we can
+  actually prompt), and the master config doesn't exist yet.
+  """
+  if as_json_top:
+    return False
+  if not sys.stdin.isatty() or not sys.stdout.isatty():
+    return False
+  return not master_config_path().is_file()
 
 
 @cli.command("hello")

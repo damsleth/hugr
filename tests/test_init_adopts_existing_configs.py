@@ -52,9 +52,11 @@ def test_init_does_not_mutate_existing_yaams_config(monkeypatch, tmp_path: Path)
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
 
-  # One prompt: "Continue?" -> y (yaams config exists so no second prompt)
-  result = CliRunner().invoke(cli, ["init"], input="y\n")
+  # Prompts: continue?, run ledger init? (no), run owa setup? (no).
+  # Yaams is state C (config exists) so no yaams prompt.
+  result = CliRunner().invoke(cli, ["init"], input="y\nn\nn\n")
   assert result.exit_code == 0, result.output
 
   # File must be unchanged byte-for-byte.
@@ -85,8 +87,11 @@ def test_init_does_not_mutate_existing_ledger_config(monkeypatch, tmp_path: Path
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
 
-  result = CliRunner().invoke(cli, ["init"], input="y\ny\n")
+  # continue?, generate yaams config?, (ledger is state C - no prompt),
+  # run owa-piggy setup? (declined)
+  result = CliRunner().invoke(cli, ["init"], input="y\ny\nn\n")
   assert result.exit_code == 0, result.output
 
   assert ledger_cfg.read_bytes() == original_bytes, (
@@ -115,8 +120,11 @@ def test_init_does_not_mutate_existing_owa_piggy_config(monkeypatch, tmp_path: P
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
 
-  result = CliRunner().invoke(cli, ["init"], input="y\ny\n")
+  # continue?, generate yaams config?, run ledger init? (declined),
+  # (owa-piggy is state C - no prompt)
+  result = CliRunner().invoke(cli, ["init"], input="y\ny\nn\n")
   assert result.exit_code == 0, result.output
 
   assert owa_cfg.read_bytes() == original_bytes, (
@@ -148,6 +156,7 @@ def test_init_does_not_mutate_any_config_when_all_three_exist(monkeypatch, tmp_p
   from hugr.commands import init as init_mod
   monkeypatch.setattr(init_mod, "run_all", _stub_probes)
   monkeypatch.setattr(init_mod, "_which_or_warn", lambda _name: None)
+  monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
 
   result = CliRunner().invoke(cli, ["init"], input="y\n")
   assert result.exit_code == 0, result.output

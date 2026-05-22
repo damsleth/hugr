@@ -127,7 +127,16 @@ def _m365_profiles() -> list[dict]:
   return profiles
 
 
-def _apply_fixes(*, yes: bool) -> list[dict]:
+def _apply_fixes(*, yes: bool, components: list[dict] | None = None) -> list[dict]:
+  """Walk known state-B (installed-but-unconfigured) findings and
+  offer the same setup chain `hugr init` would run.
+
+  State A (missing binary) is out of scope for `--fix` - install
+  flow belongs in `hugr init`.
+
+  ``components`` is the per-tool doctor payload list from
+  ``_aggregate``; if None, only the master-config fix is offered.
+  """
   fixes: list[dict] = []
   master = master_config_path()
   if not master.is_file():
@@ -145,7 +154,59 @@ def _apply_fixes(*, yes: bool) -> list[dict]:
     else:
       item["hint"] = "re-run with `hugr doctor --fix --yes` to apply"
     fixes.append(item)
+
+  for comp in components or []:
+    if not comp.get("installed"):
+      continue  # state A; init's job, not fix's
+    tool = comp.get("tool")
+    for finding in comp.get("findings") or []:
+      fix = _fix_for_finding(tool, finding, yes=yes)
+      if fix is not None:
+        fixes.append(fix)
   return fixes
+
+
+def _fix_for_finding(tool: str | None, finding: dict, *, yes: bool) -> dict | None:
+  """Map a known (tool, finding-id) to a state-B setup chain.
+
+  Returns the fix dict if we know how to handle it, otherwise None.
+  Without --yes, returns a pending stub with a hint pointing at the
+  --yes form.
+  """
+  fid = finding.get("id")
+
+  if tool == "yaams" and fid == "config_missing":
+    item = {
+      "id": "yaams_config_missing",
+      "description": "Generate ~/.config/yaams/config.yaml via `hugr init --quick`",
+      "safe": True,
+      "applied": False,
+    }
+    if yes:
+      from hugr.commands.init import quick_bootstrap_doc
+      result = quick_bootstrap_doc()
+      item["applied"] = bool(result.get("ok"))
+      item["result"] = result
+    else:
+      item["hint"] = "re-run with `hugr doctor --fix --yes` to apply"
+    return item
+
+  if tool == "owa-piggy" and fid == "no_profiles":
+    # owa-piggy setup needs an alias + email, and we don't want to
+    # invent them. --yes still leaves this pending with a clear
+    # pointer to the interactive form.
+    return {
+      "id": "owa_piggy_no_profiles",
+      "description": "Set up an owa-piggy profile",
+      "safe": False,
+      "applied": False,
+      "hint": (
+        "needs interactive input; run `hugr init` or "
+        "`owa-piggy setup --profile <alias> --email <addr>`"
+      ),
+    }
+
+  return None
 
 
 def _aggregate(*, fix: bool = False, yes: bool = False) -> dict:
@@ -177,7 +238,7 @@ def _aggregate(*, fix: bool = False, yes: bool = False) -> dict:
     "_exit_code": worst_exit,
   }
   if fix:
-    doc["fixes_applied"] = _apply_fixes(yes=yes)
+    doc["fixes_applied"] = _apply_fixes(yes=yes, components=components)
   return doc
 
 
