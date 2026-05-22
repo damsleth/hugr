@@ -204,6 +204,16 @@ def version_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
   ctx.exit(run(as_json or ctx.obj.get("json", False)))
 
 
+@cli.command("list")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering (default).")
+@click.pass_context
+def list_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  del pretty
+  from hugr.commands.list import run
+  ctx.exit(run(as_json or ctx.obj.get("json", False)))
+
+
 @cli.command("doctor")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
 @click.option("--pretty", is_flag=True, default=False, help="Human rendering (default).")

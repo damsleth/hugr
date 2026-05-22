@@ -19,6 +19,7 @@ from hugr.router import verbs
 _BUILTIN_VERBS = [
   ("hello", "hugr", "Show this elevator pitch"),
   ("version", "hugr", "Show hugr version and observed component versions"),
+  ("list", "hugr", "List all suite binaries with installed state and version"),
   ("doctor", "hugr", "Run health checks across the whole suite"),
   ("init", "hugr", "First-run wizard: detect sources and write config"),
 ]
