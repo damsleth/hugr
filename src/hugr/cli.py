@@ -927,6 +927,104 @@ def server_cmd(host: str, port: int, mcp: bool, insecure: bool) -> None:
   launch(host=host, port=port, mcp=mcp, insecure=insecure)
 
 
+@cli.group("sync", invoke_without_command=False)
+def sync_group() -> None:
+  """Cross-device state sync (plan 04.3a)."""
+
+
+@sync_group.command("init")
+@click.argument("repo_url")
+@click.option("--clone-into", default=None, type=click.Path(), help="Target dir; defaults to $HUGR_HOME/state.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def sync_init_cmd(ctx: click.Context, repo_url: str, clone_into: str | None, as_json: bool, pretty: bool) -> None:
+  from hugr import sync as sync_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  target = Path(clone_into) if clone_into else None
+  envelope = sync_mod.init(repo_url, clone_into=target)
+  doc = envelope.as_dict()
+  if pretty and not as_json_eff:
+    if envelope.ok:
+      click.echo(f"hugr sync init: device={doc['device_id']}  public_key={doc['public_key']}")
+      click.echo(f"  state repo at {doc['clone_into']}")
+    else:
+      _emit_action_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(envelope.exit_code)
+
+
+@sync_group.command("status")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def sync_status_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  from hugr import sync as sync_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  envelope = sync_mod.status()
+  doc = envelope.as_dict()
+  if pretty and not as_json_eff:
+    if not envelope.ok:
+      _emit_action_pretty(doc)
+    else:
+      click.echo(f"device:   {doc.get('device_id')}")
+      click.echo(f"repo:     {doc.get('clone_into')}")
+      click.echo(f"identity: {doc.get('public_key') or '(none)'}")
+      recipients = doc.get("recipients") or []
+      click.echo(f"recipients ({len(recipients)}):")
+      for r in recipients:
+        click.echo(f"  - {r.get('device')}: {r.get('public_key')}")
+      last = doc.get("last_commit") or {}
+      if last:
+        click.echo(f"last commit: {last.get('sha', '')[:8]} {last.get('date', '')} {last.get('subject', '')}")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(envelope.exit_code)
+
+
+@sync_group.command("push")
+@click.option("-m", "--message", default=None)
+@click.option("--yes", is_flag=True, default=False, help="Skip the interactive confirmation prompt.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def sync_push_cmd(ctx: click.Context, message: str | None, yes: bool, as_json: bool, pretty: bool) -> None:
+  from hugr import sync as sync_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  blocked = _confirm_mutation("sync push", as_json=as_json_eff, yes=yes)
+  if blocked is not None:
+    ctx.exit(blocked)
+  envelope = sync_mod.push(message=message)
+  doc = envelope.as_dict()
+  if pretty and not as_json_eff:
+    _emit_action_pretty(doc)
+    for snap in doc.get("snapshots") or []:
+      click.echo(f"  pushed: {snap}")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(envelope.exit_code)
+
+
+@sync_group.command("pull")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def sync_pull_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  from hugr import sync as sync_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  envelope = sync_mod.pull()
+  doc = envelope.as_dict()
+  if pretty and not as_json_eff:
+    _emit_action_pretty(doc)
+    if envelope.ok:
+      last = doc.get("last_commit") or {}
+      click.echo(f"  last commit: {last.get('sha', '')[:8]} {last.get('subject', '')}")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(envelope.exit_code)
+
+
 @cli.command("mcp")
 @click.option(
   "--stdio",

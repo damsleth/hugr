@@ -1,0 +1,179 @@
+"""Tests for plan 04.3a `hugr sync`.
+
+We don't depend on the real ``age`` binary or a remote git server; both
+are stubbed where needed. One integration-shaped test uses a real local
+bare git repo to exercise clone/commit/push, but it skips when neither
+``git`` nor ``age`` is on PATH.
+"""
+
+from __future__ import annotations
+
+import gzip
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from click.testing import CliRunner
+
+from hugr import sync as sync_mod
+from hugr.cli import cli
+from hugr.sync import age as age_mod
+from hugr.sync import devices as devices_mod
+from hugr.sync import git as git_mod
+
+
+def _isolate(tmp_path: Path, monkeypatch) -> Path:
+  monkeypatch.setenv("HUGR_HOME", str(tmp_path / "hugr-home"))
+  monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+  monkeypatch.setenv("HUGR_DEVICE_ID", "test-device")
+  state = tmp_path / "state"
+  monkeypatch.setenv("HUGR_STATE_DIR", str(state))
+  return state
+
+
+def test_device_id_honors_override(monkeypatch):
+  monkeypatch.setenv("HUGR_DEVICE_ID", "alpha")
+  assert devices_mod.device_id() == "alpha"
+
+
+def test_register_recipient_replaces_same_device(tmp_path: Path):
+  path = tmp_path / "recipients.txt"
+  devices_mod.register_recipient(path, "laptop", "age1xxx")
+  devices_mod.register_recipient(path, "laptop", "age1yyy")
+  rows = devices_mod.read_recipients(path)
+  assert len(rows) == 1
+  assert rows[0]["public_key"] == "age1yyy"
+
+
+def test_register_recipient_appends_other_device(tmp_path: Path):
+  path = tmp_path / "recipients.txt"
+  devices_mod.register_recipient(path, "laptop", "age1xxx")
+  devices_mod.register_recipient(path, "phone", "age1zzz")
+  rows = devices_mod.read_recipients(path)
+  devices = sorted(r["device"] for r in rows)
+  assert devices == ["laptop", "phone"]
+
+
+def test_status_reports_not_initialized(tmp_path: Path, monkeypatch):
+  _isolate(tmp_path, monkeypatch)
+  envelope = sync_mod.status()
+  assert envelope.ok is False
+  assert envelope.error["code"] == "not_initialized"
+
+
+def test_push_pull_init_require_git_and_age(tmp_path: Path, monkeypatch):
+  _isolate(tmp_path, monkeypatch)
+  monkeypatch.setattr(git_mod, "is_available", lambda: False)
+  monkeypatch.setattr(age_mod, "is_available", lambda: False)
+
+  env = sync_mod.init("git@example.com:repo.git")
+  assert env.ok is False
+  assert env.error["code"] == "missing_binary"
+  assert "git" in env.error["message"] and "age" in env.error["message"]
+
+
+@pytest.fixture
+def fake_age(monkeypatch):
+  """Replace the age helpers with pure-Python stand-ins.
+
+  - generate_identity writes "AGE-IDENTITY: <hex>\\n# public key: age1<hex>"
+  - public_key_from_identity reads the # public key: line
+  - encrypt prepends a magic header so we can verify it was called
+  - decrypt strips the header
+  """
+
+  def gen(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = (
+      "AGE-IDENTITY: AGE-SECRET-KEY-TESTONLY\n"
+      "# public key: age1testkeyabcdef\n"
+    )
+    path.write_text(body, encoding="utf-8")
+    path.chmod(0o600)
+
+  monkeypatch.setattr(age_mod, "is_available", lambda: True)
+  monkeypatch.setattr(age_mod, "generate_identity", gen)
+  monkeypatch.setattr(
+    age_mod, "encrypt", lambda data, recipients: b"AGE-FAKE\n" + data
+  )
+  monkeypatch.setattr(
+    age_mod, "decrypt", lambda data, identity: data.removeprefix(b"AGE-FAKE\n")
+  )
+
+
+def _init_bare_upstream(path: Path) -> None:
+  subprocess.run(
+    ["git", "init", "--bare", str(path)],
+    capture_output=True,
+    check=True,
+  )
+
+
+def _git_available() -> bool:
+  return git_mod.is_available()
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_init_clones_and_registers_recipient(tmp_path: Path, monkeypatch, fake_age):
+  state = _isolate(tmp_path, monkeypatch)
+  bare = tmp_path / "upstream.git"
+  _init_bare_upstream(bare)
+  # The bare repo is empty; init's clone will produce an empty working tree.
+
+  envelope = sync_mod.init(str(bare))
+  assert envelope.ok is True, envelope.as_dict()
+  assert envelope.data["device_id"] == "test-device"
+  assert envelope.data["public_key"] == "age1testkeyabcdef"
+
+  recipients_file = state / ".age-recipients.txt"
+  rows = devices_mod.read_recipients(recipients_file)
+  assert rows == [{"device": "test-device", "public_key": "age1testkeyabcdef"}]
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_push_writes_encrypted_master_config(tmp_path: Path, monkeypatch, fake_age):
+  state = _isolate(tmp_path, monkeypatch)
+  bare = tmp_path / "upstream.git"
+  _init_bare_upstream(bare)
+
+  # Seed a master config so _snapshot_targets() finds it
+  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.toml"
+  cfg.parent.mkdir(parents=True)
+  cfg.write_text("version = 1\n")
+
+  # Identify git author for the commit
+  monkeypatch.setenv("GIT_AUTHOR_NAME", "T")
+  monkeypatch.setenv("GIT_AUTHOR_EMAIL", "t@example.com")
+  monkeypatch.setenv("GIT_COMMITTER_NAME", "T")
+  monkeypatch.setenv("GIT_COMMITTER_EMAIL", "t@example.com")
+
+  sync_mod.init(str(bare))
+  envelope = sync_mod.push()
+  assert envelope.ok is True, envelope.as_dict()
+
+  snapshot = state / "shared" / "hugr" / "master-config.yaml.gz.age"
+  assert snapshot.is_file()
+  blob = snapshot.read_bytes()
+  assert blob.startswith(b"AGE-FAKE\n")
+  decoded = gzip.decompress(blob.removeprefix(b"AGE-FAKE\n"))
+  assert decoded == b"version = 1\n"
+
+
+def test_cli_sync_status_returns_4_without_repo(tmp_path: Path, monkeypatch):
+  _isolate(tmp_path, monkeypatch)
+  result = CliRunner().invoke(cli, ["sync", "status", "--json"])
+  assert result.exit_code == 4
+  payload = json.loads(result.output)
+  assert payload["error"]["code"] == "not_initialized"
+
+
+def test_cli_sync_push_requires_yes_in_json_mode(tmp_path: Path, monkeypatch):
+  _isolate(tmp_path, monkeypatch)
+  result = CliRunner().invoke(cli, ["sync", "push", "--json"])
+  assert result.exit_code == 1
+  payload = json.loads(result.output)
+  assert payload["error"]["code"] == "confirmation_required"
