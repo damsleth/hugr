@@ -101,7 +101,7 @@ async def test_ask_screen_after_typing(monkeypatch) -> None:
     rendered = str(results.content)
     assert rendered.strip() != ""
     assert captured_worker == {
-      "name": "yaams-query",
+      "name": "recall",
       "exclusive": True,
       "thread": True,
     }
