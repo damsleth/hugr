@@ -1037,9 +1037,11 @@ def sync_pull_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
   "--http",
   "transport",
   flag_value="http",
-  help="Serve over HTTP (plan 04.6; not yet implemented).",
+  help="Serve over Streamable HTTP (for Claude.ai and remote clients).",
 )
-def mcp_cmd(transport: str) -> None:
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=7777, show_default=True, type=int)
+def mcp_cmd(transport: str, host: str, port: int) -> None:
   """Serve hugr.api as MCP tools (requires [mcp] extra)."""
   import sys
   try:
@@ -1050,12 +1052,13 @@ def mcp_cmd(transport: str) -> None:
       err=True,
     )
     sys.exit(4)
-  if transport == "http":
-    click.echo("hugr mcp --http is not yet implemented (plan 04.6).", err=True)
-    sys.exit(4)
   import asyncio
-  from hugr.mcp.stdio import run
-  asyncio.run(run())
+  if transport == "http":
+    from hugr.mcp.http import run as run_http
+    asyncio.run(run_http(host=host, port=port))
+    return
+  from hugr.mcp.stdio import run as run_stdio
+  asyncio.run(run_stdio())
 
 
 def main() -> int:

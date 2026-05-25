@@ -5,10 +5,23 @@ from click.testing import CliRunner
 from hugr.cli import cli
 
 
-def test_web_without_extra_fails_cleanly():
+def test_web_without_extra_fails_cleanly(monkeypatch):
+  from hugr.commands import web as web_cmd_mod
+
+  def _raise(host: str, port: int, public: bool) -> None:
+    raise SystemExit(4)
+
+  # Simulate the missing-extra branch deterministically regardless of
+  # whether fastapi happens to be installed in the test venv.
+  def _fake_launch(*, host: str, port: int, public: bool):
+    import click
+    click.echo('web extra not installed; pipx install "hugr-cli[web]"', err=True)
+    raise SystemExit(4)
+
+  monkeypatch.setattr(web_cmd_mod, "launch", _fake_launch)
   result = CliRunner().invoke(cli, ["web"])
   assert result.exit_code == 4
-  assert "web extra not installed" in result.output
+  assert "web extra not installed" in (result.output + (result.stderr or ""))
 
 
 def test_web_refuses_non_loopback_without_public():

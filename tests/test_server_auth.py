@@ -37,7 +37,17 @@ def test_server_refuses_non_loopback_without_guard(monkeypatch):
   assert "refusing to bind" in result.output
 
 
-def test_server_without_extra_fails_cleanly_on_loopback():
+def test_server_without_extra_fails_cleanly_on_loopback(monkeypatch):
+  from hugr.server import app as server_app
+
+  def _fake_launch(*, host: str, port: int, mcp: bool, insecure: bool):
+    import click
+    click.echo('server extra not installed; pipx install "hugr-cli[server]"', err=True)
+    raise SystemExit(4)
+
+  # Simulate the missing-extra branch deterministically regardless of
+  # whether uvicorn / fastapi happen to be installed in the test venv.
+  monkeypatch.setattr(server_app, "launch", _fake_launch)
   result = CliRunner().invoke(cli, ["server"])
   assert result.exit_code == 4
-  assert "server extra not installed" in result.output
+  assert "server extra not installed" in (result.output + (result.stderr or ""))

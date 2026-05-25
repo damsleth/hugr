@@ -49,7 +49,12 @@ def test_passthrough_tools_have_args_array_schema():
   """Passthrough wrappers (args: list[str]) must have an args array property."""
   tools = build_tool_defs()
   # All tools except doctor and version are passthrough wrappers.
-  non_passthrough = {"hugr.doctor", "hugr.version", "hugr.recall", "hugr.find", "hugr.inbox", "hugr.remember"}
+  non_passthrough = {
+    "hugr.doctor", "hugr.version",
+    "hugr.recall", "hugr.find", "hugr.inbox", "hugr.remember",
+    "hugr.send.mail", "hugr.send.invite",
+    "hugr.book.propose", "hugr.book.commit",
+  }
   for tool in tools:
     if tool.name in non_passthrough:
       continue
