@@ -1,0 +1,34 @@
+# Example docker-compose for hugr server.
+#
+# Copy this to docker-compose.yml, set HUGR_AUTH_PROXY to the proxy
+# you actually run, and `docker compose up -d`.
+
+version: "3.9"
+
+services:
+  hugr:
+    image: ghcr.io/damsleth/hugr:dev
+    container_name: hugr
+    restart: unless-stopped
+    ports:
+      # Bind to loopback on the host by default; expose externally via a
+      # reverse proxy (Caddy / nginx) or Cloudflare Tunnel.
+      - "127.0.0.1:7777:7777"
+    environment:
+      # Required if you bind to 0.0.0.0 inside the container without
+      # editing the CMD: tells hugr a recognised auth proxy is in front.
+      HUGR_AUTH_PROXY: cloudflare    # or "tailscale"; refuses unknown values
+      # Optional: override the device id used by `hugr sync`
+      HUGR_DEVICE_ID: vps-fly-osl
+    volumes:
+      - hugr-config:/config
+      - hugr-data:/data
+      - hugr-state:/state
+    # If you want SSH-based git access to the state repo, mount a
+    # dedicated read-only deploy key here:
+    # - ./secrets/state-deploy-key:/root/.ssh/id_ed25519:ro
+
+volumes:
+  hugr-config:
+  hugr-data:
+  hugr-state:

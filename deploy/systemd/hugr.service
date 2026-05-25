@@ -1,0 +1,29 @@
+[Unit]
+Description=hugr server (web + MCP HTTP)
+Documentation=https://github.com/damsleth/hugr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust to the unprivileged user you create for hugr.
+User=hugr
+Group=hugr
+# Paths can live anywhere you like; mirror the docker volumes.
+Environment=XDG_CONFIG_HOME=/var/lib/hugr/config
+Environment=HUGR_HOME=/var/lib/hugr/data
+Environment=HUGR_STATE_DIR=/var/lib/hugr/state
+# Required if you bind to 0.0.0.0 below.
+# Environment=HUGR_AUTH_PROXY=cloudflare
+ExecStart=/usr/local/bin/hugr server --host 127.0.0.1 --port 7777 --mcp
+Restart=on-failure
+RestartSec=5s
+# Light sandboxing; tighten further if your distro supports it.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hugr
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
