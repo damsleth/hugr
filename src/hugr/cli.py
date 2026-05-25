@@ -355,6 +355,442 @@ def remember_cmd(
   ctx.exit(int(doc.get("exit_code") or (0 if doc.get("ok") else 1)))
 
 
+@cli.group("send", invoke_without_command=False)
+def send_group() -> None:
+  """Send mail or create calendar events through the fused API."""
+
+
+@cli.group("book", invoke_without_command=False)
+def book_group() -> None:
+  """Fused scheduling: propose slots with owa-sched, commit via owa-cal.
+
+  Plan 01 originally named this verb ``hugr schedule``; renamed to
+  ``hugr book`` to coexist with the existing ``hugr schedule``
+  passthrough to owa-sched. Same intent: find slots, confirm one,
+  create the event.
+  """
+
+
+def _emit_action_pretty(doc: dict) -> None:
+  if doc.get("ok"):
+    click.echo(f"hugr {doc.get('command', 'send')}: ok")
+    return
+  err = doc.get("error") or {}
+  click.echo(
+    f"hugr {doc.get('command', 'send')} failed: {err.get('message', 'unknown error')}",
+    err=True,
+  )
+  if err.get("hint"):
+    click.echo(f"hint: {err['hint']}", err=True)
+
+
+def _confirm_mutation(label: str, *, as_json: bool, yes: bool) -> int | None:
+  """Block destructive mutations on a non-TTY without --yes.
+
+  Returns None when the caller may proceed, or an exit code if the
+  caller should bail. In JSON mode, never prompts - require --yes.
+  """
+  if yes:
+    return None
+  if as_json:
+    click.echo(
+      json.dumps({
+        "tool": "hugr",
+        "command": label,
+        "ok": False,
+        "exit_code": 1,
+        "error": {
+          "code": "confirmation_required",
+          "message": f"hugr {label} mutates state; pass --yes for non-interactive use.",
+          "hint": f"hugr {label} --yes ...",
+        },
+      }),
+    )
+    return 1
+  if not sys.stdin.isatty() or not sys.stdout.isatty():
+    click.echo(
+      f"hugr {label} requires --yes when stdin is not a TTY.",
+      err=True,
+    )
+    return 1
+  if not click.confirm(f"Proceed with `hugr {label}`?", default=False):
+    click.echo("aborted.", err=True)
+    return 1
+  return None
+
+
+@send_group.command("mail")
+@click.option("--to", "to", multiple=True, required=True, help="Recipient (repeatable).")
+@click.option("--cc", "cc", multiple=True, help="CC recipient (repeatable).")
+@click.option("--bcc", "bcc", multiple=True, help="BCC recipient (repeatable).")
+@click.option("--subject", required=True)
+@click.option("--body", required=True)
+@click.option("--html", is_flag=True, default=False)
+@click.option("--yes", is_flag=True, default=False, help="Skip the interactive confirmation prompt.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def send_mail_cmd(
+  ctx: click.Context,
+  to: tuple[str, ...],
+  cc: tuple[str, ...],
+  bcc: tuple[str, ...],
+  subject: str,
+  body: str,
+  html: bool,
+  yes: bool,
+  as_json: bool,
+  pretty: bool,
+) -> None:
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  blocked = _confirm_mutation("send mail", as_json=as_json_eff, yes=yes)
+  if blocked is not None:
+    ctx.exit(blocked)
+  from hugr import api
+  doc = api.send_mail(list(to), subject, body, cc=list(cc), bcc=list(bcc), html=html)
+  if pretty and not as_json_eff:
+    _emit_action_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(int(doc.get("exit_code") or (0 if doc.get("ok") else 1)))
+
+
+@send_group.command("invite")
+@click.option("--subject", required=True)
+@click.option("--date", default=None)
+@click.option("--start", default=None)
+@click.option("--end", default=None)
+@click.option("--location", default=None)
+@click.option("--body", default=None)
+@click.option("--category", default=None)
+@click.option("--showas", default=None)
+@click.option("--yes", is_flag=True, default=False, help="Skip the interactive confirmation prompt.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def send_invite_cmd(
+  ctx: click.Context,
+  subject: str,
+  date: str | None,
+  start: str | None,
+  end: str | None,
+  location: str | None,
+  body: str | None,
+  category: str | None,
+  showas: str | None,
+  yes: bool,
+  as_json: bool,
+  pretty: bool,
+) -> None:
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  blocked = _confirm_mutation("send invite", as_json=as_json_eff, yes=yes)
+  if blocked is not None:
+    ctx.exit(blocked)
+  from hugr import api
+  doc = api.send_invite(
+    subject,
+    date=date,
+    start=start,
+    end=end,
+    location=location,
+    body=body,
+    category=category,
+    showas=showas,
+  )
+  if pretty and not as_json_eff:
+    _emit_action_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(int(doc.get("exit_code") or (0 if doc.get("ok") else 1)))
+
+
+@book_group.command("propose")
+@click.argument("intent", nargs=-1, required=True)
+@click.option("--who", multiple=True, required=True, help="Attendee (repeatable).")
+@click.option("--duration", "duration_minutes", default=30, show_default=True, type=int)
+@click.option("--date", default=None)
+@click.option("--week", default=None)
+@click.option("--year", default=None)
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def book_propose_cmd(
+  ctx: click.Context,
+  intent: tuple[str, ...],
+  who: tuple[str, ...],
+  duration_minutes: int,
+  date: str | None,
+  week: str | None,
+  year: str | None,
+  as_json: bool,
+  pretty: bool,
+) -> None:
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  from hugr import api
+  doc = api.schedule(
+    _question_from_parts(intent),
+    who=list(who),
+    duration_minutes=duration_minutes,
+    date=date,
+    week=week,
+    year=year,
+  )
+  if pretty and not as_json_eff:
+    click.echo(f"hugr book propose: {doc.get('proposed_subject') or ''}")
+    slots = doc.get("slots") or []
+    if not slots:
+      click.echo("(no slots found)")
+    for idx, slot in enumerate(slots):
+      label = " - ".join(
+        str(slot.get(k))
+        for k in ("date", "day", "start", "from", "end", "to")
+        if slot.get(k)
+      )
+      click.echo(f"  [{idx}] {label}".rstrip())
+    warn = doc.get("error")
+    if warn:
+      click.echo(f"warning: {warn.get('message')}", err=True)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0 if doc.get("ok") else int(doc.get("exit_code") or 1))
+
+
+@book_group.command("commit")
+@click.argument("intent", nargs=-1, required=True)
+@click.option("--who", multiple=True, required=True, help="Attendee (repeatable).")
+@click.option("--duration", "duration_minutes", default=30, show_default=True, type=int)
+@click.option("--date", default=None)
+@click.option("--week", default=None)
+@click.option("--year", default=None)
+@click.option("--slot", "slot_idx", default=0, show_default=True, type=int, help="Index into the proposal slot list.")
+@click.option("--location", default=None)
+@click.option("--body", default=None)
+@click.option("--category", default=None)
+@click.option("--yes", is_flag=True, default=False, help="Skip the interactive confirmation prompt.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def book_commit_cmd(
+  ctx: click.Context,
+  intent: tuple[str, ...],
+  who: tuple[str, ...],
+  duration_minutes: int,
+  date: str | None,
+  week: str | None,
+  year: str | None,
+  slot_idx: int,
+  location: str | None,
+  body: str | None,
+  category: str | None,
+  yes: bool,
+  as_json: bool,
+  pretty: bool,
+) -> None:
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  blocked = _confirm_mutation("book commit", as_json=as_json_eff, yes=yes)
+  if blocked is not None:
+    ctx.exit(blocked)
+  from hugr import api
+  intent_text = _question_from_parts(intent)
+  proposal = api.schedule(
+    intent_text,
+    who=list(who),
+    duration_minutes=duration_minutes,
+    date=date,
+    week=week,
+    year=year,
+  )
+  slots = proposal.get("slots") or []
+  if not slots or slot_idx < 0 or slot_idx >= len(slots):
+    doc = {
+      "tool": "hugr",
+      "command": "book commit",
+      "ok": False,
+      "exit_code": 4,
+      "request": {"intent": intent_text, "slot": slot_idx},
+      "error": {
+        "code": "slot_unavailable",
+        "message": f"no proposal slot at index {slot_idx} (found {len(slots)})",
+        "hint": "Run `hugr book propose` first to see available slots.",
+      },
+      "proposal": proposal,
+    }
+    if pretty and not as_json_eff:
+      _emit_action_pretty(doc)
+    else:
+      _emit_json_doc(doc)
+    ctx.exit(4)
+  doc = api.schedule_commit(
+    intent_text,
+    who=list(who),
+    slot=slots[slot_idx],
+    location=location,
+    body=body,
+    category=category,
+  )
+  if pretty and not as_json_eff:
+    _emit_action_pretty(doc)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(int(doc.get("exit_code") or (0 if doc.get("ok") else 1)))
+
+
+@cli.group("session", invoke_without_command=False)
+def session_group() -> None:
+  """Manage hugr sessions (Plan 01.5).
+
+  A session is an optional workspace at ``$HUGR_HOME/sessions/<id>/``
+  that hugr verbs share. Select one via ``HUGR_SESSION=<id>`` before
+  running other verbs.
+  """
+
+
+@session_group.command("start")
+@click.option("--ttl", "ttl_seconds", type=int, default=None, help="Session TTL in seconds (default 1800).")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def session_start_cmd(ctx: click.Context, ttl_seconds: int | None, as_json: bool, pretty: bool) -> None:
+  from hugr import session as session_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  ttl = ttl_seconds or session_mod.SESSION_TTL_SECONDS
+  meta = session_mod.start_session(ttl_seconds=ttl)
+  doc = {
+    "tool": "hugr",
+    "command": "session start",
+    "ok": True,
+    "exit_code": 0,
+    "session": meta.as_dict(),
+    "hint": f"export HUGR_SESSION={meta.id}",
+  }
+  if pretty and not as_json_eff:
+    click.echo(f"started session {meta.id}")
+    click.echo(f"  export HUGR_SESSION={meta.id}")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
+@session_group.command("end")
+@click.argument("sid", required=False)
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def session_end_cmd(ctx: click.Context, sid: str | None, as_json: bool, pretty: bool) -> None:
+  from hugr import session as session_mod
+  target = sid or session_mod.current_session_id()
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  if not target:
+    doc = {
+      "tool": "hugr",
+      "command": "session end",
+      "ok": False,
+      "exit_code": 1,
+      "error": {
+        "code": "no_active_session",
+        "message": "no session id provided and HUGR_SESSION is unset.",
+        "hint": "hugr session end <id> or set HUGR_SESSION first.",
+      },
+    }
+    if pretty and not as_json_eff:
+      _emit_action_pretty(doc)
+    else:
+      _emit_json_doc(doc)
+    ctx.exit(1)
+  removed = session_mod.end_session(target)
+  doc = {
+    "tool": "hugr",
+    "command": "session end",
+    "ok": removed,
+    "exit_code": 0 if removed else 4,
+    "session_id": target,
+  }
+  if not removed:
+    doc["error"] = {
+      "code": "session_not_found",
+      "message": f"no session {target}",
+      "hint": "hugr session list",
+    }
+  if pretty and not as_json_eff:
+    if removed:
+      click.echo(f"ended session {target}")
+    else:
+      click.echo(f"no session {target}", err=True)
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(doc["exit_code"])
+
+
+@session_group.command("status")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def session_status_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  from hugr import session as session_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  doc = session_mod.status()
+  if pretty and not as_json_eff:
+    cur = doc.get("current_session_id")
+    click.echo(f"current: {cur or '(none)'}")
+    for s in doc.get("sessions") or []:
+      mark = "*" if s.get("id") == cur else "-"
+      click.echo(f"  {mark} {s.get('id')}  last_used={s.get('last_used_at')}  ttl={s.get('ttl_seconds')}s")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
+@session_group.command("list")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON document on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def session_list_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  from hugr import session as session_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  metas = [m.as_dict() for m in session_mod.list_sessions()]
+  doc = {
+    "tool": "hugr",
+    "command": "session list",
+    "ok": True,
+    "exit_code": 0,
+    "sessions": metas,
+  }
+  if pretty and not as_json_eff:
+    for s in metas:
+      click.echo(f"{s.get('id')}  last_used={s.get('last_used_at')}  ttl={s.get('ttl_seconds')}s")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
+@session_group.command("gc")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Machine mode (JSON envelope on stdout).")
+@click.option("--pretty", is_flag=True, default=False, help="Human rendering.")
+@click.pass_context
+def session_gc_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
+  from hugr import session as session_mod
+  as_json_eff = as_json or ctx.obj.get("json", False)
+  removed = session_mod.gc_stale()
+  doc = {
+    "tool": "hugr",
+    "command": "session gc",
+    "ok": True,
+    "exit_code": 0,
+    "removed": removed,
+    "count": len(removed),
+  }
+  if pretty and not as_json_eff:
+    if not removed:
+      click.echo("no stale sessions")
+    else:
+      click.echo(f"removed {len(removed)} stale session(s):")
+      for sid in removed:
+        click.echo(f"  - {sid}")
+  else:
+    _emit_json_doc(doc)
+  ctx.exit(0)
+
+
 @cli.command("init")
 @click.option(
   "--json",

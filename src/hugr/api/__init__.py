@@ -33,6 +33,10 @@ from hugr.api.fused import recall as recall
 from hugr.api.fused import find as find
 from hugr.api.fused import inbox as inbox
 from hugr.api.fused import remember as remember
+from hugr.api.send import send_mail as send_mail
+from hugr.api.send import send_invite as send_invite
+from hugr.api.schedule import schedule as schedule
+from hugr.api.schedule import schedule_commit as schedule_commit
 from hugr.api.version import version as version
 
 # Passthrough wrappers ---------------------------------------------------
@@ -206,6 +210,10 @@ __all__ = [
     "find",
     "inbox",
     "remember",
+    "send_mail",
+    "send_invite",
+    "schedule",
+    "schedule_commit",
     "yaams_query",
     "yaams_ingest",
     "yaams_promote_generate",

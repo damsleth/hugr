@@ -10,6 +10,7 @@ import json
 from typing import Any, Sequence
 
 from hugr.api._passthrough import call as _call
+from hugr import session as _session
 
 
 def _decode_json(raw: bytes) -> Any:
@@ -98,7 +99,7 @@ def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
             verb_args=["mail", "search", question],
         )
 
-    return {
+    doc = {
         "tool": "hugr",
         "command": "recall",
         "query": question,
@@ -107,6 +108,11 @@ def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
         "citations": [_citation_for(item) for item in sources if item["ok"]],
         "warnings": warnings,
     }
+    sid = _session.current_session_id()
+    if sid is not None and _session.read_meta(sid) is not None:
+        _session.write_last_recall(sid, doc)
+        _session.touch(sid)
+    return doc
 
 
 def find(kind: str, query: str, *, k: int = 10) -> dict[str, Any]:
@@ -157,12 +163,43 @@ def inbox() -> dict[str, Any]:
             command=command,
             verb_args=verb_args,
         )
-    return {
+    doc = {
         "tool": "hugr",
         "command": "inbox",
         "sources": sources,
         "warnings": warnings,
     }
+    sid = _session.current_session_id()
+    if sid is not None and _session.read_meta(sid) is not None:
+        ids = _collect_ids(sources)
+        _session.write_working_set(sid, ids)
+        _session.touch(sid)
+    return doc
+
+
+def _collect_ids(sources: list[dict[str, Any]]) -> list[Any]:
+    """Pull ids/labels out of source payloads for the working set."""
+    ids: list[Any] = []
+    for src in sources:
+        data = src.get("data")
+        candidates: list[Any] = []
+        if isinstance(data, list):
+            candidates = data
+        elif isinstance(data, dict):
+            for key in ("items", "results", "loops", "events", "messages"):
+                value = data.get(key)
+                if isinstance(value, list):
+                    candidates = value
+                    break
+        for item in candidates:
+            if isinstance(item, dict):
+                ids.append({
+                    "source": src.get("source"),
+                    "id": item.get("id") or item.get("uuid") or item.get("name"),
+                })
+            else:
+                ids.append({"source": src.get("source"), "id": item})
+    return ids
 
 
 def remember(
