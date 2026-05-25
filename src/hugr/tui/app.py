@@ -15,6 +15,7 @@ from hugr.tui.screens.ask import AskScreen
 from hugr.tui.screens.doctor import DoctorScreen
 from hugr.tui.screens.find import FindScreen
 from hugr.tui.screens.inbox import InboxScreen
+from hugr.tui.screens.remember import RememberScreen
 from hugr.tui.screens.session import SessionScreen
 
 CSS = """
@@ -81,6 +82,9 @@ class HugrApp(App):
 
   def action_session_screen(self) -> None:
     self._navigate_to(SessionScreen)
+
+  def action_remember_screen(self) -> None:
+    self._navigate_to(RememberScreen)
 
 
 def run() -> None:

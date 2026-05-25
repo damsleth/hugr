@@ -163,6 +163,45 @@ async def test_session_screen_shows_active(monkeypatch, tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_remember_screen_requires_confirm(monkeypatch) -> None:
+  from hugr.tui.app import HugrApp
+  from hugr.tui.screens.remember import RememberScreen
+  from textual.widgets import Checkbox, Input, Static
+
+  called: list[bool] = []
+  import hugr.api as api
+  monkeypatch.setattr(api, "remember", lambda *a, **k: called.append(True) or {"ok": True, "fact": "x"})
+
+  app = HugrApp()
+  async with app.run_test(size=(120, 40)) as pilot:
+    await pilot.pause()
+    await pilot.pause()
+    pilot.app.action_remember_screen()
+    await pilot.pause(delay=0.1)
+    assert isinstance(pilot.app.screen, RememberScreen)
+
+    screen = pilot.app.screen
+    screen.query_one("#fact-input", Input).value = "Nina prefers early flights"
+    await pilot.pause(delay=0.05)
+
+    # Without confirm: submit, expect warning, no api call
+    await pilot.press("enter")
+    await pilot.pause(delay=0.1)
+    assert called == []
+    assert "Tick the confirm" in str(screen.query_one("#results", Static).content)
+
+    # With confirm: api fires
+    screen.query_one("#confirm-box", Checkbox).value = True
+    await pilot.pause(delay=0.05)
+    await pilot.press("enter")
+    for _ in range(40):
+      if called:
+        break
+      await pilot.pause(delay=0.05)
+    assert called == [True]
+
+
+@pytest.mark.asyncio
 async def test_nav_returns_to_ask(monkeypatch) -> None:
   from hugr.tui.app import HugrApp
   from hugr.tui.screens.ask import AskScreen

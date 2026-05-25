@@ -24,6 +24,7 @@ _NAV_MARKUP = (
   "[@click='app.inbox_screen()'][i]nbox[/]  "
   "[@click='app.doctor_screen()'][d]octor[/]  "
   "[@click='app.session_screen()'][s]ession[/]  "
+  "[@click='app.remember_screen()'][r]emember[/]  "
   "[q]uit"
 )
 
@@ -37,6 +38,7 @@ class FindScreen(Screen):
     ("i", "app.inbox_screen", "Inbox"),
     ("d", "app.doctor_screen", "Doctor"),
     ("s", "app.session_screen", "Session"),
+    ("r", "app.remember_screen", "Remember"),
   ]
 
   def compose(self) -> ComposeResult:

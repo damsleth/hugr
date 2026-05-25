@@ -15,6 +15,7 @@ _NAV_MARKUP = (
   "[@click='app.inbox_screen()'][i]nbox[/]  "
   "[@click='app.doctor_screen()'][d]octor[/]  "
   "[@click='app.session_screen()'][s]ession[/]  "
+  "[@click='app.remember_screen()'][r]emember[/]  "
   "[q]uit"
 )
 
@@ -28,6 +29,7 @@ class DoctorScreen(Screen):
     ("f", "app.find_screen", "Find"),
     ("i", "app.inbox_screen", "Inbox"),
     ("s", "app.session_screen", "Session"),
+    ("r", "app.remember_screen", "Remember"),
     ("r", "refresh", "Refresh"),
   ]
 

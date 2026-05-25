@@ -31,6 +31,13 @@ from typing import Any, AsyncIterator
 import hugr.api as api
 from hugr import session as session_mod
 
+try:
+  from fastapi import FastAPI, Header, Query, Request
+  from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+  _FASTAPI_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised by CLI fallback
+  _FASTAPI_AVAILABLE = False
+
 
 def _wants_json(accept: str | None) -> bool:
   return bool(accept and "application/json" in accept.lower())
@@ -93,13 +100,8 @@ async def _stream_ingest(args: list[str]) -> AsyncIterator[str]:
 
 
 def create_app():
-  try:
-    from fastapi import FastAPI, Header, Request
-    from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-  except ImportError as exc:  # pragma: no cover - exercised by CLI fallback
-    raise RuntimeError(
-      'web extra not installed; pipx install "hugr-cli[web]"'
-    ) from exc
+  if not _FASTAPI_AVAILABLE:  # pragma: no cover - exercised by CLI fallback
+    raise RuntimeError('web extra not installed; pipx install "hugr-cli[web]"')
 
   app = FastAPI(title="hugr", version="0.1")
 
@@ -185,6 +187,165 @@ def create_app():
       return JSONResponse(payload)
     return HTMLResponse(_doc_html("Doctor", payload))
 
+  # --- Mutation panels (plan 03.5) ------------------------------------
+  # All mutations require an explicit ``confirm=on`` field in the POST
+  # body. The matching GET endpoint renders the form with a visible
+  # confirmation checkbox; the JSON-only /api endpoints require
+  # ``confirm=true`` in the body. Without it, the handler returns 412
+  # Precondition Failed with the same envelope shape the CLI emits.
+
+  def _confirmation_required(command: str):
+    return {
+      "tool": "hugr",
+      "command": command,
+      "ok": False,
+      "exit_code": 1,
+      "error": {
+        "code": "confirmation_required",
+        "message": f"hugr {command} mutates state; include confirm=on/true.",
+        "hint": "Tick the confirm box in the form, or include confirm=true in the POST body.",
+      },
+    }
+
+  def _form_truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+      return value
+    if value is None:
+      return False
+    return str(value).strip().lower() in {"on", "true", "1", "yes"}
+
+  def _send_form(action: str, fields: str) -> str:
+    return _html_page(
+      f"Send {action}",
+      f"""
+      <h1>Send {action}</h1>
+      <form action="/send/{action}" method="post">
+        {fields}
+        <label><input type="checkbox" name="confirm" value="on" required> I confirm</label>
+        <button type="submit">Send</button>
+      </form>
+      """,
+    )
+
+  @app.get("/send/mail")
+  def send_mail_form():
+    return HTMLResponse(_send_form(
+      "mail",
+      """
+      <label>To (comma-separated)<br><input name="to" required></label><br><br>
+      <label>Subject<br><input name="subject" required></label><br><br>
+      <label>Body<br><textarea name="body" rows="6" required></textarea></label><br><br>
+      <label>CC (optional)<br><input name="cc"></label><br><br>
+      <label>BCC (optional)<br><input name="bcc"></label><br><br>
+      <label><input type="checkbox" name="html"> Body is HTML</label><br><br>
+      """,
+    ))
+
+  @app.post("/send/mail")
+  async def send_mail_post(request: Request, accept: str | None = Header(default=None)):
+    form = await request.form()
+    if not _form_truthy(form.get("confirm")):
+      doc = _confirmation_required("send mail")
+      if _wants_json(accept):
+        return JSONResponse(doc, status_code=412)
+      return HTMLResponse(_doc_html("Send mail", doc), status_code=412)
+    to_raw = str(form.get("to") or "")
+    cc_raw = str(form.get("cc") or "")
+    bcc_raw = str(form.get("bcc") or "")
+    doc = api.send_mail(
+      [s.strip() for s in to_raw.split(",") if s.strip()],
+      str(form.get("subject") or ""),
+      str(form.get("body") or ""),
+      cc=[s.strip() for s in cc_raw.split(",") if s.strip()],
+      bcc=[s.strip() for s in bcc_raw.split(",") if s.strip()],
+      html=_form_truthy(form.get("html")),
+    )
+    status = 200 if doc.get("ok") else 502
+    if _wants_json(accept):
+      return JSONResponse(doc, status_code=status)
+    return HTMLResponse(_doc_html("Send mail", doc), status_code=status)
+
+  @app.get("/send/invite")
+  def send_invite_form():
+    return HTMLResponse(_send_form(
+      "invite",
+      """
+      <label>Subject<br><input name="subject" required></label><br><br>
+      <label>Date (today / tomorrow / YYYY-MM-DD)<br><input name="date"></label><br><br>
+      <label>Start (HH:MM)<br><input name="start"></label><br><br>
+      <label>End (HH:MM)<br><input name="end"></label><br><br>
+      <label>Location<br><input name="location"></label><br><br>
+      <label>Body<br><textarea name="body" rows="4"></textarea></label><br><br>
+      <label>Category<br><input name="category"></label><br><br>
+      """,
+    ))
+
+  @app.post("/send/invite")
+  async def send_invite_post(request: Request, accept: str | None = Header(default=None)):
+    form = await request.form()
+    if not _form_truthy(form.get("confirm")):
+      doc = _confirmation_required("send invite")
+      if _wants_json(accept):
+        return JSONResponse(doc, status_code=412)
+      return HTMLResponse(_doc_html("Send invite", doc), status_code=412)
+
+    def _opt(field: str) -> str | None:
+      value = form.get(field)
+      if value is None:
+        return None
+      text = str(value).strip()
+      return text or None
+
+    doc = api.send_invite(
+      str(form.get("subject") or ""),
+      date=_opt("date"),
+      start=_opt("start"),
+      end=_opt("end"),
+      location=_opt("location"),
+      body=_opt("body"),
+      category=_opt("category"),
+    )
+    status = 200 if doc.get("ok") else 502
+    if _wants_json(accept):
+      return JSONResponse(doc, status_code=status)
+    return HTMLResponse(_doc_html("Send invite", doc), status_code=status)
+
+  @app.get("/remember")
+  def remember_form():
+    return HTMLResponse(_html_page(
+      "Remember",
+      """
+      <h1>Remember</h1>
+      <form action="/remember" method="post">
+        <label>Fact<br><textarea name="fact" rows="3" required></textarea></label><br><br>
+        <label>Type<br><input name="type" value="fact"></label><br><br>
+        <label>Links (comma-separated)<br><input name="links"></label><br><br>
+        <label><input type="checkbox" name="confirm" value="on" required> I confirm</label>
+        <button type="submit">Remember</button>
+      </form>
+      """,
+    ))
+
+  @app.post("/remember")
+  async def remember_post(request: Request, accept: str | None = Header(default=None)):
+    form = await request.form()
+    if not _form_truthy(form.get("confirm")):
+      doc = _confirmation_required("remember")
+      if _wants_json(accept):
+        return JSONResponse(doc, status_code=412)
+      return HTMLResponse(_doc_html("Remember", doc), status_code=412)
+    links_raw = str(form.get("links") or "")
+    doc = api.remember(
+      str(form.get("fact") or ""),
+      note_type=str(form.get("type") or "fact"),
+      links=[s.strip() for s in links_raw.split(",") if s.strip()],
+      yes=True,
+    )
+    status = 200 if doc.get("ok") else 502
+    if _wants_json(accept):
+      return JSONResponse(doc, status_code=status)
+    return HTMLResponse(_doc_html("Remember", doc), status_code=status)
+
   @app.get("/session")
   def session_index(accept: str | None = Header(default=None)):
     doc = session_mod.status()
@@ -249,8 +410,6 @@ def create_app():
       "working_set": session_mod.read_working_set(session_id),
     }
     return JSONResponse(doc, status_code=200 if meta else 404)
-
-  from fastapi import Query
 
   @app.get("/api/stream/ingest")
   async def api_stream_ingest(arg: list[str] = Query(default_factory=list)):
