@@ -141,13 +141,13 @@ class TestBuildReportM365:
   def test_m365_profiles_key_populated_when_owa_returns_profiles(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     _patch_fanout(monkeypatch)
-    payload = json.dumps([{"name": "crayon"}, {"name": "swon"}])
+    payload = json.dumps([{"name": "work"}, {"name": "swon"}])
     proc = _make_proc(stdout=payload)
     with patch("subprocess.run", return_value=proc):
       doc, _code = build_report()
     assert len(doc["m365_profiles"]) == 2
     names = {p["name"] for p in doc["m365_profiles"]}
-    assert names == {"crayon", "swon"}
+    assert names == {"work", "swon"}
 
 
 # ---------------------------------------------------------------------------

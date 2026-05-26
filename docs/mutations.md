@@ -182,9 +182,9 @@ without going through the YAAMS-promote review queue.
 ```bash
 hugr remember "Nina prefers early flights" --yes
 hugr remember "Deploy gate is the GROWTH-3142 flag" --type fact --link topic:deploys --yes
-hugr remember "Inmeta moved Norconsult onboarding to Q3" \
+hugr remember "Acme moved the Globex onboarding to Q3" \
   --type project \
-  --link org:inmeta --link person:nina \
+  --link org:acme --link person:nina \
   --yes --json
 ```
 

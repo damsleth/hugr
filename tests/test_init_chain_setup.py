@@ -68,8 +68,8 @@ def test_chain_owa_piggy_setup_uses_alias_and_email(monkeypatch, tmp_path: Path)
   monkeypatch.setattr(subprocess, "run", fake_run)
 
   # continue?, generate yaams?(y), run ledger init?(n),
-  # run owa-piggy setup?(y), alias=work, email=carl@crayon.no
-  inputs = "y\ny\nn\ny\nwork\ncarl@crayon.no\n"
+  # run owa-piggy setup?(y), alias=work, email=you@example.com
+  inputs = "y\ny\nn\ny\nwork\nyou@example.com\n"
   result = CliRunner().invoke(cli, ["init"], input=inputs)
   assert result.exit_code == 0, result.output
 
@@ -80,7 +80,7 @@ def test_chain_owa_piggy_setup_uses_alias_and_email(monkeypatch, tmp_path: Path)
   assert owa_calls, f"expected owa-piggy setup invocation; got {recorded}"
   argv = owa_calls[0]
   assert "--profile" in argv and argv[argv.index("--profile") + 1] == "work"
-  assert "--email" in argv and argv[argv.index("--email") + 1] == "carl@crayon.no"
+  assert "--email" in argv and argv[argv.index("--email") + 1] == "you@example.com"
 
 
 def test_chain_owa_piggy_skipped_when_alias_or_email_blank(monkeypatch, tmp_path: Path):

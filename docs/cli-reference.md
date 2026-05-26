@@ -148,7 +148,7 @@ Promote a fact directly into the ledger.
 ```bash
 hugr remember "Nina prefers early flights" --yes
 hugr remember "deploy gate is the GROWTH-3142 flag" --type fact --link topic:deploys --yes
-hugr remember "Inmeta moved Norconsult onboarding to Q3" --type project --link org:inmeta --yes --json
+hugr remember "Acme moved the Globex onboarding to Q3" --type project --link org:acme --yes --json
 ```
 
 ### `hugr send mail`
