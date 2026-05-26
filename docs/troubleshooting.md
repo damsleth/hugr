@@ -141,7 +141,7 @@ pipx install --force "hugr-cli[web]"
 pipx install --force "hugr-cli[all]"
 ```
 
-Same pattern for `[tui]`, `[server]`, `[mcp]`.
+Same pattern for `[tui]`, `[server]`.
 
 ## `hugr server --host 0.0.0.0` exits 3 with "refusing to bind"
 
@@ -162,34 +162,6 @@ hugr server --host 0.0.0.0 --insecure
 ```
 
 See [deploy/docs/deploy.md](../deploy/docs/deploy.md).
-
-## `hugr mcp --http` works but Claude can't see tools
-
-**Cause**: the MCP transport is up, but your Claude client is still
-pointing at stdio.
-
-**Fix**: in your Claude client config, switch to the HTTP transport.
-For Claude Code, register the HTTP endpoint:
-
-```bash
-claude mcp add --transport http hugr http://127.0.0.1:7777/mcp
-```
-
-Or add it to `.mcp.json` in the project root:
-
-```json
-{
-  "mcpServers": {
-    "hugr": {
-      "type": "http",
-      "url": "http://127.0.0.1:7777/mcp"
-    }
-  }
-}
-```
-
-For Claude.ai remote MCP integrations, point at
-`https://hugr.example.com/mcp` (your auth proxy fronts it).
 
 ## TUI screen looks broken / Inputs eat my nav keys
 

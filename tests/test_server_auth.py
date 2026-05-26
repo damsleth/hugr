@@ -40,7 +40,7 @@ def test_server_refuses_non_loopback_without_guard(monkeypatch):
 def test_server_without_extra_fails_cleanly_on_loopback(monkeypatch):
   from hugr.server import app as server_app
 
-  def _fake_launch(*, host: str, port: int, mcp: bool, insecure: bool):
+  def _fake_launch(*, host: str, port: int, insecure: bool):
     import click
     click.echo('server extra not installed; pipx install "hugr-cli[server]"', err=True)
     raise SystemExit(4)

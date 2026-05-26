@@ -52,7 +52,7 @@ hugr hello
 Or via pipx (Python):
 
 ```bash
-pipx install "hugr-cli[all]"   # CLI + TUI + web + server + MCP
+pipx install "hugr-cli[all]"   # CLI + TUI + web + server
 hugr init --quick
 ```
 
@@ -70,7 +70,7 @@ hugr book propose "Standup" --who vibeke@example.com --duration 30 --date tomorr
 hugr book commit  "Standup" --who vibeke@example.com --duration 30 --date tomorrow --slot 0 --yes
 hugr tui                                  # Textual TUI
 hugr web                                  # FastAPI web on 127.0.0.1:7777
-hugr server --mcp                         # deploy-ready, mounts /mcp HTTP transport
+hugr server                               # deploy-ready FastAPI runtime
 hugr sync push --yes                      # encrypted state to a private GitHub repo
 ```
 
@@ -92,7 +92,7 @@ Start with [`docs/`](docs/):
 | [`docs/recall.md`](docs/recall.md) | `recall`, `find`, `inbox` - the fused query verbs |
 | [`docs/mutations.md`](docs/mutations.md) | `send`, `book`, `remember`, confirmation rules |
 | [`docs/sessions.md`](docs/sessions.md) | Session model + working sets |
-| [`docs/surfaces.md`](docs/surfaces.md) | TUI, web UI, MCP, `hugr server` |
+| [`docs/surfaces.md`](docs/surfaces.md) | TUI, web UI, `hugr server` |
 | [`docs/sync.md`](docs/sync.md) | Cross-device state sync over git + age |
 | [`docs/config.md`](docs/config.md) | Master config + env vars |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common errors and fixes |

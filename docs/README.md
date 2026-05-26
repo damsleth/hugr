@@ -12,7 +12,7 @@
 | [recall.md](recall.md) | `hugr recall`, `find`, `inbox` - the fused query verbs. |
 | [mutations.md](mutations.md) | `send mail`, `send invite`, `book`, `remember`. Confirmation rules. |
 | [sessions.md](sessions.md) | `$HUGR_HOME/sessions/<id>/`, working sets, follow-up queries. |
-| [surfaces.md](surfaces.md) | TUI (`hugr tui`), web UI (`hugr web`), MCP (`hugr mcp`), `hugr server`. |
+| [surfaces.md](surfaces.md) | TUI (`hugr tui`), web UI (`hugr web`), `hugr server`. |
 | [sync.md](sync.md) | `hugr sync init/push/pull/status` over git + age. |
 | [config.md](config.md) | Master config, env vars, per-tool config adoption. |
 | [troubleshooting.md](troubleshooting.md) | Common errors and how to fix them. |
@@ -32,7 +32,6 @@ hugr/
 ├── src/hugr/
 │   ├── api/         # in-process Python API (recall, find, send, ...)
 │   ├── commands/    # Click subcommands (doctor, init, version, ...)
-│   ├── mcp/         # MCP server (stdio + Streamable HTTP)
 │   ├── server/      # FastAPI server runtime
 │   ├── sync/        # git + age cross-device state sync
 │   ├── tui/         # Textual terminal UI

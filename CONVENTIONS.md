@@ -275,7 +275,7 @@ commands are data-class unless explicitly documented as action-class:
 For fused data-class commands, source failures are reported in
 `warnings[]` and the successful source payloads remain available.
 This mirrors the suite-wide partial-success stance while keeping the
-top-level document parseable for TUI, web, and MCP surfaces.
+top-level document parseable for TUI and web surfaces.
 
 ### Doctor JSON schema
 

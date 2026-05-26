@@ -23,7 +23,7 @@ pipx install hugr-cli
 Or install with every optional surface:
 
 ```bash
-pipx install "hugr-cli[tui,web,server,mcp]"
+pipx install "hugr-cli[tui,web,server]"
 # shorthand:
 pipx install "hugr-cli[all]"
 ```
@@ -35,8 +35,7 @@ Individual extras:
 | `tui` | `hugr tui` (Textual terminal UI) |
 | `web` | `hugr web` (FastAPI web UI on `127.0.0.1:7777`) |
 | `server` | `hugr server` (same web app, deploy-friendly) |
-| `mcp` | `hugr mcp --stdio` / `hugr mcp --http` (MCP transports) |
-| `all` | shortcut for the four above |
+| `all` | shortcut for the three above |
 
 `hugr` itself depends only on `click`. Everything else is optional.
 The binary name installed on `$PATH` is `hugr`.

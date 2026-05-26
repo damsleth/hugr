@@ -290,9 +290,6 @@ hugr web                             # FastAPI web on 127.0.0.1:7777
 hugr web --host 0.0.0.0 --public     # requires HUGR_WEB_TOKEN
 hugr server --host 127.0.0.1 --port 7777
 hugr server --host 0.0.0.0 --insecure  # opt-in: no auth proxy required
-hugr server --mcp                    # also mount /mcp Streamable HTTP
-hugr mcp                             # stdio (default; for Claude Code)
-hugr mcp --http --host 127.0.0.1 --port 7777   # standalone MCP HTTP
 ```
 
 `hugr server` refuses non-loopback binds unless `HUGR_AUTH_PROXY` is

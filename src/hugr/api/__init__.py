@@ -3,7 +3,7 @@
 Internal API; subject to change until v2 stabilizes.
 
 Every function here returns data - never writes to stdout or stderr.
-Callers (CLI, TUI, web, MCP) own serialization.
+Callers (CLI, TUI, web) own serialization.
 
 Action-class wrappers return ``(exit_code: int, stdout_bytes: bytes)``.
 The bytes contain the JSON envelope from the underlying tool; the

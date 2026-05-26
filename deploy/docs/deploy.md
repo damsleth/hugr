@@ -1,8 +1,7 @@
 # Deploying `hugr server`
 
 `hugr server` is a single FastAPI process that serves the web UI at
-`/`, JSON mirrors at `/api/*`, and the MCP Streamable HTTP transport
-at `/mcp` (when launched with `--mcp`).
+`/` and JSON mirrors at `/api/*`.
 
 It binds to loopback by default. Anything non-loopback must go behind
 one of:
@@ -44,7 +43,7 @@ docker exec -it hugr hugr sync init git@github.com:you/hugr-state.git
 
 ```bash
 useradd --system --create-home --home-dir /var/lib/hugr --shell /usr/sbin/nologin hugr
-sudo -u hugr pipx install "hugr-cli[server,web,mcp]"
+sudo -u hugr pipx install "hugr-cli[server,web]"
 sudo cp deploy/systemd/hugr.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now hugr
@@ -69,7 +68,7 @@ Set the unit to bind 0.0.0.0 and trust the tailnet:
 
 ```ini
 Environment=HUGR_AUTH_PROXY=tailscale
-ExecStart=/usr/local/bin/hugr server --host 0.0.0.0 --port 7777 --mcp
+ExecStart=/usr/local/bin/hugr server --host 0.0.0.0 --port 7777
 ```
 
 Tailscale's per-device ACLs are the only auth here; treat the listener
@@ -80,15 +79,6 @@ the same way you'd treat any service you'd put on a tailnet.
 `GET /healthz` returns `{"ok": true, "tool": "hugr"}` while the
 process is up. The Docker image's `HEALTHCHECK` directive uses this
 endpoint; set the same in your reverse proxy.
-
-## MCP from Claude
-
-With `--mcp` on, the Streamable HTTP transport lives at `/mcp`.
-
-- Claude Code (local stdio): `hugr mcp --stdio` (no server required).
-- Claude.ai / Claude-on-phone (remote): point a remote MCP integration
-  at `https://hugr.example.com/mcp` — your auth proxy fronts it the
-  same way it fronts `/` and `/api/*`.
 
 ## What this deploy *does not* include
 
@@ -106,5 +96,4 @@ With `--mcp` on, the Streamable HTTP transport lives at `/mcp`.
 | --- | --- |
 | Container exits with `refusing to bind` | Missing or unrecognized `HUGR_AUTH_PROXY` while binding non-loopback. Set it to `cloudflare` / `tailscale`, or pass `--insecure`. |
 | `hugr sync init` fails with `git_clone_failed` | Container can't reach the state repo. Mount a deploy key or use HTTPS + a token. |
-| `/mcp` returns 404 | Server started without `--mcp`. Either rerun with `--mcp` or use `hugr mcp --http` as a standalone process on a different port. |
 | `age-keygen` not found | Image / host is missing the `age` binary. `apt install age` / `brew install age`. `hugr doctor` flags this. |

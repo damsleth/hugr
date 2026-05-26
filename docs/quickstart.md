@@ -154,5 +154,5 @@ folders, and what is and isn't synced.
 
 - The full command surface: [cli-reference.md](cli-reference.md)
 - Configuration: [config.md](config.md)
-- TUI / web / MCP / server: [surfaces.md](surfaces.md)
+- TUI / web / server: [surfaces.md](surfaces.md)
 - When things break: [troubleshooting.md](troubleshooting.md)

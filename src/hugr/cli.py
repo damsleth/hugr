@@ -917,12 +917,11 @@ def web_cmd(host: str, port: int, public: bool) -> None:
 @cli.command("server")
 @click.option("--host", default="127.0.0.1", show_default=True)
 @click.option("--port", default=7777, show_default=True, type=int)
-@click.option("--mcp", is_flag=True, default=False, help="Also expose MCP HTTP transport when available.")
 @click.option("--insecure", is_flag=True, default=False, help="Allow non-loopback bind without an auth proxy.")
-def server_cmd(host: str, port: int, mcp: bool, insecure: bool) -> None:
+def server_cmd(host: str, port: int, insecure: bool) -> None:
   """Run hugr web/server runtime (requires [server] extra)."""
   from hugr.server.app import launch
-  launch(host=host, port=port, mcp=mcp, insecure=insecure)
+  launch(host=host, port=port, insecure=insecure)
 
 
 @cli.group("sync", invoke_without_command=False)
@@ -1021,42 +1020,6 @@ def sync_pull_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
   else:
     _emit_json_doc(doc)
   ctx.exit(envelope.exit_code)
-
-
-@cli.command("mcp")
-@click.option(
-  "--stdio",
-  "transport",
-  flag_value="stdio",
-  default=True,
-  help="Serve over stdio (default, for Claude Code / local MCP clients).",
-)
-@click.option(
-  "--http",
-  "transport",
-  flag_value="http",
-  help="Serve over Streamable HTTP (for Claude.ai and remote clients).",
-)
-@click.option("--host", default="127.0.0.1", show_default=True)
-@click.option("--port", default=7777, show_default=True, type=int)
-def mcp_cmd(transport: str, host: str, port: int) -> None:
-  """Serve hugr.api as MCP tools (requires [mcp] extra)."""
-  import sys
-  try:
-    import mcp  # noqa: F401 - presence check only
-  except ImportError:
-    click.echo(
-      'mcp extra not installed; pipx install "hugr-cli[mcp]"',
-      err=True,
-    )
-    sys.exit(4)
-  import asyncio
-  if transport == "http":
-    from hugr.mcp.http import run as run_http
-    asyncio.run(run_http(host=host, port=port))
-    return
-  from hugr.mcp.stdio import run as run_stdio
-  asyncio.run(run_stdio())
 
 
 def main() -> int:

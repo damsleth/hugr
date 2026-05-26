@@ -1,4 +1,4 @@
-# Dockerfile for hugr — runs `hugr server` with MCP enabled.
+# Dockerfile for hugr — runs `hugr server`.
 #
 # Volumes:
 #   /config  -> $XDG_CONFIG_HOME (master + per-tool configs)
@@ -42,10 +42,10 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 
-# Install with all optional surfaces (web, server, mcp). TUI is omitted
+# Install with the server surfaces (web, server). TUI is omitted
 # in the server image; install [all] locally if you want it.
 RUN pip install --upgrade pip \
-    && pip install ".[server,web,mcp]"
+    && pip install ".[server,web]"
 
 VOLUME ["/config", "/data", "/state"]
 
@@ -56,4 +56,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Default to loopback bind. Use docker run -e HUGR_AUTH_PROXY=... and
 # pass --host 0.0.0.0 in CMD if running behind a recognized proxy.
-CMD ["hugr", "server", "--host", "0.0.0.0", "--port", "7777", "--mcp"]
+CMD ["hugr", "server", "--host", "0.0.0.0", "--port", "7777"]
