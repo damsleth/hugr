@@ -1017,6 +1017,13 @@ def sync_pull_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
     if envelope.ok:
       last = doc.get("last_commit") or {}
       click.echo(f"  last commit: {last.get('sha', '')[:8]} {last.get('subject', '')}")
+      conflicts = doc.get("conflicts") or []
+      for c in conflicts:
+        saved = c.get("saved_theirs_to")
+        tail = f" (incoming saved to {saved})" if saved else ""
+        click.echo(f"  conflict: kept ours for {c.get('path', '')}{tail}")
+      if conflicts:
+        click.echo(f"  {len(conflicts)} conflict(s) need manual reconciliation")
   else:
     _emit_json_doc(doc)
   ctx.exit(envelope.exit_code)

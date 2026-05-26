@@ -206,14 +206,31 @@ Missing binary:
 
 ## Pull
 
-Fast-forward the local clone. **Snapshot writeback** (decrypt + apply
-to local configs / DB) is deferred to plan 04.4; today `pull` only
-updates the git working tree.
+Three-way merges the upstream branch into the local clone. When the
+clone is behind, it fast-forwards. When two devices have both pushed,
+git performs a three-way merge:
+
+- **Non-conflicting changes auto-merge.** Per-device snapshot folders
+  touch different paths, so the common case merges with no conflict.
+- **Same-file conflicts keep your side** and preserve the incoming
+  version next to it as `‹path›.conflict-‹timestamp›-‹device›‹ext›`,
+  for you to reconcile by hand. This is the conflict path for shared
+  files such as ledger notes — git's merge does the heavy lifting
+  since the state lives in git already.
+
+Any merge commit produced locally is pushed back so peers converge.
+A pull that had to write conflict sidecars exits **5** (partial
+success) rather than 0, so automation can flag it for review.
+
+**Snapshot writeback** (decrypt + apply to local configs / DB) is
+deferred to plan 04.4; today `pull` only updates the git working tree.
 
 ```bash
 hugr sync pull
 hugr sync pull --json
 ```
+
+Clean pull:
 
 ```json
 {
@@ -223,6 +240,29 @@ hugr sync pull --json
   "exit_code": 0,
   "pulled_at": "2026-05-25T12:10:00Z",
   "last_commit": {"sha": "...", "subject": "..."},
+  "conflicts": [],
+  "pushed": false,
+  "note": "snapshot writeback is deferred to plan 04.4"
+}
+```
+
+Pull that resolved a conflict (exit 5):
+
+```json
+{
+  "tool": "hugr",
+  "command": "sync pull",
+  "ok": true,
+  "exit_code": 5,
+  "pulled_at": "2026-05-27T09:14:00Z",
+  "last_commit": {"sha": "...", "subject": "sync merge: kept ours, ..."},
+  "conflicts": [
+    {
+      "path": "shared/note.md",
+      "saved_theirs_to": "shared/note.md.conflict-20260527T091400Z-laptop.md"
+    }
+  ],
+  "pushed": true,
   "note": "snapshot writeback is deferred to plan 04.4"
 }
 ```

@@ -177,3 +177,117 @@ def test_cli_sync_push_requires_yes_in_json_mode(tmp_path: Path, monkeypatch):
   assert result.exit_code == 1
   payload = json.loads(result.output)
   assert payload["error"]["code"] == "confirmation_required"
+
+
+# --- three-way merge on pull (ledger sync conflicts) ----------------------
+
+
+def _set_git_identity(monkeypatch) -> None:
+  for key, val in {
+    "GIT_AUTHOR_NAME": "T",
+    "GIT_AUTHOR_EMAIL": "t@example.com",
+    "GIT_COMMITTER_NAME": "T",
+    "GIT_COMMITTER_EMAIL": "t@example.com",
+  }.items():
+    monkeypatch.setenv(key, val)
+
+
+def _git(cwd: Path, *args: str) -> None:
+  subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, check=True)
+
+
+def _seed_upstream(tmp_path: Path, files: dict[str, str]) -> tuple[Path, Path]:
+  """A bare repo seeded on `main`, plus a peer clone that authored the seed."""
+  bare = tmp_path / "upstream.git"
+  subprocess.run(["git", "init", "--bare", str(bare)], capture_output=True, check=True)
+  subprocess.run(
+    ["git", "-C", str(bare), "symbolic-ref", "HEAD", "refs/heads/main"],
+    capture_output=True,
+    check=True,
+  )
+  peer = tmp_path / "peer"
+  subprocess.run(["git", "clone", str(bare), str(peer)], capture_output=True, check=True)
+  _peer_commit(peer, files, message="seed")
+  _git(peer, "push", "-u", "origin", "main")
+  return bare, peer
+
+
+def _peer_commit(peer: Path, files: dict[str, str], *, message: str) -> None:
+  for rel, content in files.items():
+    p = peer / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+  _git(peer, "add", "-A")
+  _git(peer, "commit", "-m", message)
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_pull_three_way_merges_nonconflicting_changes(tmp_path, monkeypatch, fake_age):
+  _set_git_identity(monkeypatch)
+  state = _isolate(tmp_path, monkeypatch)
+  bare, peer = _seed_upstream(tmp_path, {"base.txt": "base\n"})
+
+  assert sync_mod.init(str(bare)).ok is True
+
+  # A different device pushes a change to a different file.
+  _peer_commit(peer, {"fromB.txt": "B\n"}, message="peer change")
+  _git(peer, "push")
+
+  # This device commits a non-overlapping local change, then pulls.
+  (state / "fromA.txt").write_text("A\n", encoding="utf-8")
+  git_mod.commit_all(state, "local A change")
+
+  env = sync_mod.pull()
+  assert env.exit_code == 0, env.as_dict()
+  assert env.data["conflicts"] == []
+  assert (state / "fromA.txt").is_file()
+  assert (state / "fromB.txt").is_file()  # merged in from upstream
+  assert env.data["pushed"] is True  # merge commit propagated back
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_pull_conflict_keeps_ours_and_saves_theirs(tmp_path, monkeypatch, fake_age):
+  _set_git_identity(monkeypatch)
+  state = _isolate(tmp_path, monkeypatch)
+  bare, peer = _seed_upstream(tmp_path, {"shared/note.md": "base\n"})
+
+  assert sync_mod.init(str(bare)).ok is True
+
+  # Both devices edit the same note off the same base => real conflict.
+  _peer_commit(peer, {"shared/note.md": "from peer\n"}, message="peer note")
+  _git(peer, "push")
+
+  (state / "shared" / "note.md").write_text("from A\n", encoding="utf-8")
+  git_mod.commit_all(state, "local note change")
+
+  env = sync_mod.pull()
+  assert env.exit_code == 5, env.as_dict()  # partial success: needs review
+
+  # Our side is the committed version; theirs is preserved in a sidecar.
+  assert (state / "shared" / "note.md").read_text(encoding="utf-8") == "from A\n"
+  conflicts = env.data["conflicts"]
+  assert len(conflicts) == 1
+  assert conflicts[0]["path"] == "shared/note.md"
+  sidecar = state / conflicts[0]["saved_theirs_to"]
+  assert sidecar.is_file()
+  assert sidecar.read_text(encoding="utf-8") == "from peer\n"
+  assert "test-device" in conflicts[0]["saved_theirs_to"]
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_pull_clean_fast_forward_does_not_push(tmp_path, monkeypatch, fake_age):
+  _set_git_identity(monkeypatch)
+  state = _isolate(tmp_path, monkeypatch)
+  bare, peer = _seed_upstream(tmp_path, {"base.txt": "base\n"})
+
+  assert sync_mod.init(str(bare)).ok is True
+
+  # Upstream advances; this device has no local commits => fast-forward.
+  _peer_commit(peer, {"fromB.txt": "B\n"}, message="peer change")
+  _git(peer, "push")
+
+  env = sync_mod.pull()
+  assert env.exit_code == 0, env.as_dict()
+  assert env.data["conflicts"] == []
+  assert env.data["pushed"] is False  # nothing local to send back
+  assert (state / "fromB.txt").is_file()

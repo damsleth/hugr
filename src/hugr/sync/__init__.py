@@ -9,9 +9,11 @@ Plan 04.3 scope:
   and the last commit on the repo branch.
 - ``hugr sync push`` snapshots the master hugr config, encrypts it
   to all recipients, commits + pushes.
-- ``hugr sync pull`` fast-forwards the local clone. Decrypting the
-  pulled bundle and writing it onto the local config / DB is deferred
-  to plan 04.4.
+- ``hugr sync pull`` three-way merges the upstream branch into the
+  local clone: clean changes auto-merge, same-file conflicts keep ours
+  and save theirs to a ``.conflict-<ts>-<device>`` sidecar (exit 5).
+  Decrypting the pulled bundle and writing it onto the local config /
+  DB is deferred to plan 04.4.
 
 Everything is thin glue around the system ``git`` and ``age`` binaries.
 If either is missing, the high-level functions return an envelope with
@@ -301,8 +303,60 @@ def push(*, message: str | None = None) -> SyncEnvelope:
     )
 
 
+def _conflict_sidecar_name(rel_path: str, device: str) -> str:
+    """Sibling filename that preserves the incoming ("theirs") side.
+
+    ``shared/note.md`` -> ``shared/note.md.conflict-<ts>-<device>.md``
+    so the original extension is retained for editors while the marker
+    stays unambiguous.
+    """
+    ts = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    suffix = Path(rel_path).suffix
+    return f"{rel_path}.conflict-{ts}-{device}{suffix}"
+
+
+def _resolve_conflicts(repo: Path, conflicts: list[str], device: str) -> list[dict[str, str]]:
+    """Resolve a merged-but-conflicted worktree.
+
+    Keeps our side as the committed version and writes the incoming
+    ("theirs") side to a ``.conflict-<ts>-<device>`` sidecar the user
+    reconciles manually. Encrypted blobs can't be line-merged, so this
+    is the documented conflict-file policy; git already auto-merged
+    every non-conflicting path before we got here.
+    """
+    resolved: list[dict[str, str]] = []
+    for rel in conflicts:
+        theirs = git_mod.read_stage(repo, 3, rel)
+        sidecar: str | None = None
+        if theirs is not None:
+            sidecar = _conflict_sidecar_name(rel, device)
+            dest = repo / sidecar
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(theirs)
+        git_mod.resolve_with_ours(repo, rel)
+        resolved.append({"path": rel, "saved_theirs_to": sidecar or ""})
+    git_mod.add_all(repo)
+    git_mod.commit_no_edit(
+        repo,
+        f"sync merge: kept ours, saved theirs for {len(resolved)} conflict(s) "
+        f"on {device} @ {_now_iso()}",
+    )
+    return resolved
+
+
 def pull() -> SyncEnvelope:
-    """Fast-forward the state repo. Decryption + writeback lands in 04.4."""
+    """Three-way merge the state repo, resolving ledger conflicts in git.
+
+    Fast-forwards cleanly when nothing diverged. When two devices have
+    both pushed, git performs a three-way merge: non-conflicting paths
+    (the usual per-device-folder case) auto-merge, and genuine same-file
+    conflicts keep our side while the incoming side is preserved as a
+    ``.conflict-<ts>-<device>`` sidecar for manual reconciliation. Any
+    merge commit produced locally is pushed back so peers converge.
+
+    Decryption + writeback of snapshots onto the live config/DB is still
+    deferred to plan 04.4.
+    """
     check = _prerequisites_envelope("sync pull")
     if check is not None:
         return check
@@ -319,8 +373,14 @@ def pull() -> SyncEnvelope:
                 "hint": "Run `hugr sync init <repo-url>` first.",
             },
         )
-    rc, stderr = git_mod.pull(repo)
-    if rc != 0:
+
+    device = devices_mod.device_id()
+    rc, stderr = git_mod.pull_merge(repo)
+    conflicts = git_mod.unmerged_paths(repo)
+
+    if rc != 0 and not conflicts:
+        # A merge that failed without leaving conflicts is a real error
+        # (no upstream, detached HEAD, network, ...), not a content clash.
         return SyncEnvelope(
             ok=False,
             command="sync pull",
@@ -328,18 +388,40 @@ def pull() -> SyncEnvelope:
             error={
                 "code": "git_pull_failed",
                 "message": f"git pull failed (exit {rc})",
-                "hint": stderr.strip()[:200] or "resolve conflicts in the state repo",
+                "hint": stderr.strip()[:200] or "inspect git status in the state repo",
             },
         )
+
+    resolved: list[dict[str, str]] = []
+    if conflicts:
+        resolved = _resolve_conflicts(repo, conflicts, device)
+
+    # Push back any merge / resolution commit so other devices converge.
+    pushed = False
+    push_error: str | None = None
+    if git_mod.ahead_count(repo) > 0:
+        prc, perr = git_mod.push(repo)
+        pushed = prc == 0
+        if prc != 0:
+            push_error = perr.strip()[:200] or "git push failed after merge"
+
+    data: dict[str, Any] = {
+        "pulled_at": _now_iso(),
+        "last_commit": git_mod.last_commit(repo),
+        "conflicts": resolved,
+        "pushed": pushed,
+        "note": "snapshot writeback is deferred to plan 04.4",
+    }
+    if push_error:
+        data["push_error"] = push_error
+
+    # Conflicts that needed manual-reconciliation sidecars are a partial
+    # success (exit 5): the merge completed, but a human should review.
     return SyncEnvelope(
         ok=True,
         command="sync pull",
-        exit_code=0,
-        data={
-            "pulled_at": _now_iso(),
-            "last_commit": git_mod.last_commit(repo),
-            "note": "snapshot writeback is deferred to plan 04.4",
-        },
+        exit_code=5 if resolved else 0,
+        data=data,
     )
 
 
