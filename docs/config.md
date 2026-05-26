@@ -175,14 +175,14 @@ master config to make one of them the implicit default.
 
 | Tool | macOS | Linux |
 | --- | --- | --- |
-| hugr master | `~/Library/Application Support/hugr/config.toml` (when XDG is unset) | `~/.config/hugr/config.toml` |
+| hugr master | `~/.config/hugr/config.toml` | `~/.config/hugr/config.toml` |
 | yaams | `~/.config/yaams/config.yaml` | `~/.config/yaams/config.yaml` |
 | cognitive-ledger | `~/.config/cognitive-ledger/config.yaml` | same |
 | owa-piggy profiles | `~/.config/owa-piggy/profiles.conf` | same |
 
-On macOS, `XDG_CONFIG_HOME` is honored when set; in its absence hugr
-falls back to `~/.config` (yes, even on macOS, for parity with the
-underlying tools).
+`XDG_CONFIG_HOME` is honored when set; in its absence hugr falls back
+to `~/.config` on every platform - yes, even on macOS, for parity with
+the underlying tools (hugr does not use `~/Library/Application Support`).
 
 ## Editing safely
 

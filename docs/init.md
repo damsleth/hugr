@@ -45,13 +45,13 @@ The only file hugr ever writes during `init` is:
 After `hugr init` the master config is a flat TOML file with pointers
 to per-tool configs:
 
-```yaml
-version: 1
-data_root: ~/.local/share/hugr
-yaams_config: ~/.config/yaams/config.yaml
-ledger_config: ~/.config/cognitive-ledger/config.yaml
-owa_piggy_config: ~/.config/owa-piggy/profiles.conf
-# default_owa_profile:  # optional: set to your preferred owa-piggy profile alias
+```toml
+version = 1
+data_root = "~/.local/share/hugr"
+yaams_config = "~/.config/yaams/config.yaml"
+ledger_config = "~/.config/cognitive-ledger/config.yaml"
+owa_piggy_config = "~/.config/owa-piggy/profiles.conf"
+# default_owa_profile =  # optional: set to your preferred owa-piggy profile alias
 ```
 
 Edit this file freely. `hugr init` overwrites it only when you confirm,

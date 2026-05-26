@@ -169,12 +169,19 @@ See [deploy/docs/deploy.md](../deploy/docs/deploy.md).
 pointing at stdio.
 
 **Fix**: in your Claude client config, switch to the HTTP transport.
-For Claude Code (`~/.config/claude-code/mcp.json`):
+For Claude Code, register the HTTP endpoint:
+
+```bash
+claude mcp add --transport http hugr http://127.0.0.1:7777/mcp
+```
+
+Or add it to `.mcp.json` in the project root:
 
 ```json
 {
   "mcpServers": {
     "hugr": {
+      "type": "http",
       "url": "http://127.0.0.1:7777/mcp"
     }
   }

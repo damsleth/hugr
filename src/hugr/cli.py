@@ -364,10 +364,8 @@ def send_group() -> None:
 def book_group() -> None:
   """Fused scheduling: propose slots with owa-sched, commit via owa-cal.
 
-  Plan 01 originally named this verb ``hugr schedule``; renamed to
-  ``hugr book`` to coexist with the existing ``hugr schedule``
-  passthrough to owa-sched. Same intent: find slots, confirm one,
-  create the event.
+  Named ``hugr book`` to coexist with the ``hugr schedule`` passthrough
+  to owa-sched. Same intent: find slots, confirm one, create the event.
   """
 
 
@@ -637,7 +635,7 @@ def book_commit_cmd(
 
 @cli.group("session", invoke_without_command=False)
 def session_group() -> None:
-  """Manage hugr sessions (Plan 01.5).
+  """Manage hugr sessions.
 
   A session is an optional workspace at ``$HUGR_HOME/sessions/<id>/``
   that hugr verbs share. Select one via ``HUGR_SESSION=<id>`` before
@@ -929,7 +927,7 @@ def server_cmd(host: str, port: int, mcp: bool, insecure: bool) -> None:
 
 @cli.group("sync", invoke_without_command=False)
 def sync_group() -> None:
-  """Cross-device state sync (plan 04.3a)."""
+  """Cross-device state sync over git + age."""
 
 
 @sync_group.command("init")

@@ -1,6 +1,7 @@
 # Surfaces
 
-`hugr` ships four surfaces over the same `hugr.api` Python module:
+`hugr` exposes the same `hugr.api` Python module through several
+surfaces (`hugr server` is the web surface in deploy mode):
 
 | Surface | Binary | Best for |
 | --- | --- | --- |
@@ -10,7 +11,7 @@
 | Server | `hugr server` | VPS / Docker deploy. Requires `[server]` extra. |
 | MCP | `hugr mcp` | Claude Code / Claude.ai integration. Requires `[mcp]` extra. |
 
-All five consume the same backend, so a result you see in the TUI is
+They all consume the same backend, so a result you see in the TUI is
 byte-equivalent to what `hugr recall ... --json` produces.
 
 ## TUI - `hugr tui`
@@ -89,7 +90,7 @@ Every HTML page that wraps an `hugr.api` function returns the same
 payload when called with `Accept: application/json` - so this:
 
 ```bash
-curl -sS http://127.0.0.1:7777/find?kind=person&q=nina -H 'Accept: application/json' | jq
+curl -sS 'http://127.0.0.1:7777/find?kind=person&q=nina' -H 'Accept: application/json' | jq
 ```
 
 is byte-equivalent (modulo whitespace) to:
@@ -105,7 +106,7 @@ Long-running ingests stream NDJSON. The web layer wraps that as
 in place:
 
 ```bash
-curl -N http://127.0.0.1:7777/api/stream/ingest?arg=--source&arg=imessage
+curl -N 'http://127.0.0.1:7777/api/stream/ingest?arg=--source&arg=imessage'
 # event-stream frames:
 # data: {"type":"progress","done":1,"total":3}
 # data: {"type":"progress","done":2,"total":3}
@@ -154,12 +155,20 @@ hugr mcp                # default --stdio
 hugr mcp --stdio        # explicit
 ```
 
-Add to your Claude Code `~/.config/claude-code/mcp.json`:
+Register it with Claude Code via the CLI:
+
+```bash
+claude mcp add --transport stdio hugr -- hugr mcp --stdio
+```
+
+Or, to commit a shared config to a project, add it to `.mcp.json` in
+the project root (Claude Code reads this automatically):
 
 ```json
 {
   "mcpServers": {
     "hugr": {
+      "type": "stdio",
       "command": "hugr",
       "args": ["mcp", "--stdio"]
     }
