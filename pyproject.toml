@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hugr-cli"
-version = "0.4.1"
+version = "0.4.2"
 description = "Meta-CLI and suite hub for the hugr memory suite (yaams, cognitive-ledger, owa-piggy, owa-tools)"
 readme = "README.md"
 license = { file = "LICENSE" }
