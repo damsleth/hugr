@@ -127,10 +127,21 @@ under `packages/hugr-conventions/` (importable as `hugr_conventions`,
 zero runtime deps). `hugr` itself now depends on it - `src/hugr/
 conventions.py` is a thin tool-bound shim over `hugr_conventions.bind`.
 
-Remaining follow-up (per-repo, tracked against each sibling): swap
-each tool's copy-pasted `conventions.py` for a dependency on
-`hugr-conventions`, binding via `bind(tool, version)`. This is the
-mechanism that closes owa-tools block items 1 and 3 (the helpers
-exist there but were never wired into the CLIs) and the
-cognitive-ledger `sheep` JSON gap. As of 2026-05-27 no sibling has
-adopted the package yet.
+Per-repo adoption (DONE 2026-05-27): every sibling carrying a
+copy-pasted `conventions.py` now depends on `hugr-conventions` and
+binds via the package instead. Each kept its tool-specific bits and
+its full test suite stayed green:
+
+- **owa-tools** — binds suite version + owa's richer `redact()` (it
+  also scrubs attachment paths); keeps the `--doctor` redaction-
+  sentinel default payload. 1055 passed.
+- **cognitive-ledger** — keeps the `tool=` override (`sheep` stamps
+  its own name) and the in-tree `__version__` preference. 715 passed.
+- **yaams** — straight bind to tool name + `__version__`. 347 passed.
+- **owa-piggy** — binds tool name + version; no stream helpers (the
+  auth broker has no streaming actions). 283 passed.
+
+Note: adoption swaps the helper *source*; it does not by itself wire
+envelopes into owa-tools' action CLIs. The owa-tools block items
+(1 no action envelopes, 2 schema-only destructive gating, 3 exit-code
+taxonomy) remain open and still need per-command work in that repo.
