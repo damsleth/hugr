@@ -163,6 +163,91 @@ def test_push_writes_encrypted_master_config(tmp_path: Path, monkeypatch, fake_a
   assert decoded == b"version = 1\n"
 
 
+def _tracked_files(repo: Path) -> list[str]:
+  out = subprocess.run(
+    ["git", "-C", str(repo), "ls-files"],
+    capture_output=True,
+    text=True,
+    check=True,
+  )
+  return [line for line in out.stdout.splitlines() if line.strip()]
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_init_gitignores_private_identity(tmp_path: Path, monkeypatch, fake_age):
+  state = _isolate(tmp_path, monkeypatch)
+  bare = tmp_path / "upstream.git"
+  _init_bare_upstream(bare)
+
+  envelope = sync_mod.init(str(bare))
+  assert envelope.ok is True, envelope.as_dict()
+
+  gitignore = state / ".gitignore"
+  assert gitignore.is_file()
+  assert ".age/" in gitignore.read_text(encoding="utf-8").splitlines()
+  # The identity exists on disk but git treats it as ignored.
+  assert (state / ".age" / "identity.key").is_file()
+  ignored = subprocess.run(
+    ["git", "-C", str(state), "check-ignore", ".age/identity.key"],
+    capture_output=True,
+    text=True,
+    check=False,
+  )
+  assert ignored.returncode == 0
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_push_never_tracks_private_identity(tmp_path: Path, monkeypatch, fake_age):
+  _set_git_identity(monkeypatch)
+  state = _isolate(tmp_path, monkeypatch)
+  bare = tmp_path / "upstream.git"
+  _init_bare_upstream(bare)
+
+  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.toml"
+  cfg.parent.mkdir(parents=True)
+  cfg.write_text("version = 1\n")
+
+  sync_mod.init(str(bare))
+  envelope = sync_mod.push()
+  assert envelope.ok is True, envelope.as_dict()
+
+  tracked = _tracked_files(state)
+  assert ".age/identity.key" not in tracked
+  assert not any(t.startswith(".age/") for t in tracked)
+
+
+@pytest.mark.skipif(not _git_available(), reason="git not installed")
+def test_push_untracks_previously_committed_identity(tmp_path: Path, monkeypatch, fake_age):
+  """A repo where a buggy older push committed the key gets it scrubbed."""
+  _set_git_identity(monkeypatch)
+  state = _isolate(tmp_path, monkeypatch)
+  bare = tmp_path / "upstream.git"
+  _init_bare_upstream(bare)
+
+  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.toml"
+  cfg.parent.mkdir(parents=True)
+  cfg.write_text("version = 1\n")
+
+  sync_mod.init(str(bare))
+
+  # Simulate the legacy bug: force-add the identity behind .gitignore.
+  subprocess.run(
+    ["git", "-C", str(state), "add", "-f", ".age/identity.key"],
+    capture_output=True,
+    check=True,
+  )
+  subprocess.run(
+    ["git", "-C", str(state), "commit", "-m", "leak"],
+    capture_output=True,
+    check=True,
+  )
+  assert ".age/identity.key" in _tracked_files(state)
+
+  envelope = sync_mod.push()
+  assert envelope.ok is True, envelope.as_dict()
+  assert ".age/identity.key" not in _tracked_files(state)
+
+
 def test_cli_sync_status_returns_4_without_repo(tmp_path: Path, monkeypatch):
   _isolate(tmp_path, monkeypatch)
   result = CliRunner().invoke(cli, ["sync", "status", "--json"])

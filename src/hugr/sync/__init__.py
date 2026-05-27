@@ -45,6 +45,41 @@ def state_repo_dir() -> Path:
     return data_root_default() / "state"
 
 
+# Paths that must never be committed to the state repo. The age private
+# identity lives under ``.age/`` (mode 0600); committing it would push a
+# decryption key to a repo whose threat model assumes private keys never
+# leave the device that generated them (see docs/sync.md "Threat model").
+_GITIGNORE_REQUIRED = (".age/",)
+
+
+def _ensure_gitignore(repo: Path) -> None:
+    """Guarantee the repo's ``.gitignore`` excludes the private identity.
+
+    Runs before any ``git add -A`` so a freshly cloned (or externally
+    tampered) state repo can never stage ``.age/identity.key``. Also
+    untracks the identity dir defensively in case a prior buggy push
+    already committed it.
+    """
+    gitignore = repo / ".gitignore"
+    existing = (
+        gitignore.read_text(encoding="utf-8").splitlines()
+        if gitignore.is_file()
+        else []
+    )
+    present = {line.strip() for line in existing}
+    missing = [entry for entry in _GITIGNORE_REQUIRED if entry not in present]
+    if missing:
+        lines = list(existing)
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.extend(missing)
+        gitignore.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    # If the key was tracked by an earlier version, drop it from the index
+    # (keeps the working-tree file). No-op when it was never tracked.
+    git_mod.untrack(repo, ".age")
+
+
 def _now_iso() -> str:
     return (
         _dt.datetime.now(_dt.timezone.utc)
@@ -134,6 +169,10 @@ def init(
                 },
                 data={"repo_url": repo_url, "clone_into": str(target)},
             )
+
+    # Exclude the private identity before generating it, so even a crash
+    # between generation and the first push can't leave it stageable.
+    _ensure_gitignore(target)
 
     if not identity.is_file():
         identity.parent.mkdir(parents=True, exist_ok=True)
@@ -263,6 +302,10 @@ def push(*, message: str | None = None) -> SyncEnvelope:
         json.dumps(meta, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
+
+    # Re-assert the ignore rule on every push: defends against a repo
+    # whose .gitignore was edited away or that predates this guard.
+    _ensure_gitignore(repo)
 
     commit_msg = message or f"sync push from {devices_mod.device_id()} @ {_now_iso()}"
     rc, stderr = git_mod.commit_all(repo, commit_msg)

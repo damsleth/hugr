@@ -29,14 +29,17 @@ def launch(*, host: str = "127.0.0.1", port: int = 7777, public: bool = False) -
   if not _is_loopback(host) and not public:
     click.echo("refusing non-loopback bind without --public", err=True)
     sys.exit(3)
-  if public and not os.environ.get("HUGR_WEB_TOKEN"):
+  token = os.environ.get("HUGR_WEB_TOKEN")
+  if public and not token:
     click.echo("hugr web --public requires HUGR_WEB_TOKEN", err=True)
     sys.exit(3)
 
   try:
     import uvicorn
     from hugr.web.app import create_app
-    app = create_app()
+    # Enforce the token whenever one is set; bound non-loopback this is
+    # the request-level auth that --public promised.
+    app = create_app(token=token)
   except (ImportError, RuntimeError):
     click.echo('web extra not installed; pipx install "hugr-cli[web]"', err=True)
     sys.exit(4)

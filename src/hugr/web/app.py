@@ -24,9 +24,11 @@ clients.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import html
 import json
 from typing import Any, AsyncIterator
+from urllib.parse import urlsplit
 
 import hugr.api as api
 from hugr import session as session_mod
@@ -41,6 +43,36 @@ except ImportError:  # pragma: no cover - exercised by CLI fallback
 
 def _wants_json(accept: str | None) -> bool:
   return bool(accept and "application/json" in accept.lower())
+
+
+def _bearer_token(request: "Request") -> str | None:
+  """Extract the bearer token from the Authorization header, if any."""
+  header = request.headers.get("authorization") or ""
+  scheme, _, value = header.partition(" ")
+  if scheme.lower() != "bearer":
+    return None
+  return value.strip() or None
+
+
+def _origin_ok(request: "Request") -> bool:
+  """Reject cross-site mutations while allowing same-origin / non-browser.
+
+  Browsers attach an ``Origin`` (and usually ``Referer``) header to
+  cross-site form POSTs; the same-origin policy lets the request be sent
+  but not its response read, so ``confirm=on`` alone does not stop a
+  drive-by form targeting loopback. We compare the stated origin host to
+  the request's own host and refuse on mismatch. Non-browser clients
+  (curl, the CLI, API consumers) send neither header and are allowed -
+  they are not the CSRF threat.
+  """
+  host = request.headers.get("host")
+  for header in ("origin", "referer"):
+    value = request.headers.get(header)
+    if not value:
+      continue
+    if urlsplit(value).netloc != host:
+      return False
+  return True
 
 
 def _html_page(title: str, body: str) -> str:
@@ -82,10 +114,13 @@ async def _stream_ingest(args: list[str]) -> AsyncIterator[str]:
   responsive. The child writes one JSON document per line per the
   CONVENTIONS streaming contract.
   """
+  # stderr is discarded rather than PIPE'd: we only forward stdout NDJSON,
+  # and an unread stderr pipe would let a noisy child fill its buffer and
+  # block on write forever (see passthrough.py for the drained variant).
   proc = await asyncio.create_subprocess_exec(
     "hugr", "ingest", *args, "--json",
     stdout=asyncio.subprocess.PIPE,
-    stderr=asyncio.subprocess.PIPE,
+    stderr=asyncio.subprocess.DEVNULL,
   )
   try:
     assert proc.stdout is not None
@@ -99,11 +134,37 @@ async def _stream_ingest(args: list[str]) -> AsyncIterator[str]:
   yield f"event: done\ndata: {{\"exit_code\": {proc.returncode}}}\n\n"
 
 
-def create_app():
+def create_app(*, token: str | None = None):
   if not _FASTAPI_AVAILABLE:  # pragma: no cover - exercised by CLI fallback
     raise RuntimeError('web extra not installed; pipx install "hugr-cli[web]"')
 
   app = FastAPI(title="hugr", version="0.1")
+
+  # When a token is configured (``hugr web --public`` with HUGR_WEB_TOKEN),
+  # every route except the liveness probe requires a matching bearer
+  # token. Loopback mode passes token=None and stays unauthenticated.
+  if token:
+    @app.middleware("http")
+    async def _require_token(request: Request, call_next):
+      if request.url.path == "/healthz":
+        return await call_next(request)
+      presented = _bearer_token(request) or ""
+      # Constant-time compare so a wrong token can't be timed out byte by byte.
+      if not hmac.compare_digest(presented, token):
+        return JSONResponse(
+          {
+            "tool": "hugr",
+            "ok": False,
+            "exit_code": 1,
+            "error": {
+              "code": "unauthorized",
+              "message": "missing or invalid bearer token",
+              "hint": "Send Authorization: Bearer <HUGR_WEB_TOKEN>.",
+            },
+          },
+          status_code=401,
+        )
+      return await call_next(request)
 
   @app.get("/healthz")
   def healthz():
@@ -207,6 +268,28 @@ def create_app():
       },
     }
 
+  def _cross_origin_blocked(command: str):
+    return {
+      "tool": "hugr",
+      "command": command,
+      "ok": False,
+      "exit_code": 1,
+      "error": {
+        "code": "cross_origin_blocked",
+        "message": f"hugr {command} refused: cross-origin request.",
+        "hint": "Submit the form from the hugr web UI on the same origin.",
+      },
+    }
+
+  def _reject_cross_origin(request: Request, command: str, title: str, accept: str | None):
+    """Return a 403 response when a mutation comes from another origin, else None."""
+    if _origin_ok(request):
+      return None
+    doc = _cross_origin_blocked(command)
+    if _wants_json(accept):
+      return JSONResponse(doc, status_code=403)
+    return HTMLResponse(_doc_html(title, doc), status_code=403)
+
   def _form_truthy(value: Any) -> bool:
     if isinstance(value, bool):
       return value
@@ -243,6 +326,9 @@ def create_app():
 
   @app.post("/send/mail")
   async def send_mail_post(request: Request, accept: str | None = Header(default=None)):
+    blocked = _reject_cross_origin(request, "send mail", "Send mail", accept)
+    if blocked is not None:
+      return blocked
     form = await request.form()
     if not _form_truthy(form.get("confirm")):
       doc = _confirmation_required("send mail")
@@ -282,6 +368,9 @@ def create_app():
 
   @app.post("/send/invite")
   async def send_invite_post(request: Request, accept: str | None = Header(default=None)):
+    blocked = _reject_cross_origin(request, "send invite", "Send invite", accept)
+    if blocked is not None:
+      return blocked
     form = await request.form()
     if not _form_truthy(form.get("confirm")):
       doc = _confirmation_required("send invite")
@@ -328,6 +417,9 @@ def create_app():
 
   @app.post("/remember")
   async def remember_post(request: Request, accept: str | None = Header(default=None)):
+    blocked = _reject_cross_origin(request, "remember", "Remember", accept)
+    if blocked is not None:
+      return blocked
     form = await request.form()
     if not _form_truthy(form.get("confirm")):
       doc = _confirmation_required("remember")

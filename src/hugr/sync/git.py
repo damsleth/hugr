@@ -92,6 +92,17 @@ def add_all(repo: Path) -> tuple[int, str]:
     return _run(["git", "-C", str(repo), "add", "-A"])
 
 
+def untrack(repo: Path, rel_path: str) -> tuple[int, str]:
+    """Remove a path from the index without deleting the working-tree copy.
+
+    ``--ignore-unmatch`` makes this a no-op when the path was never
+    tracked, so it is safe to call unconditionally before a commit.
+    """
+    return _run(
+        ["git", "-C", str(repo), "rm", "-r", "--cached", "--ignore-unmatch", "--", rel_path]
+    )
+
+
 def commit_no_edit(repo: Path, message: str) -> tuple[int, str]:
     return _run(["git", "-C", str(repo), "commit", "--no-edit", "-m", message])
 
