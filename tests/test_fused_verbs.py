@@ -30,7 +30,7 @@ def test_api_ask_fuses_yaams_calendar_and_mail(monkeypatch):
   ]
 
 
-def test_api_find_routes_person_to_people_lookup(monkeypatch):
+def test_api_find_routes_person_to_people_find(monkeypatch):
   captured: dict[str, list[str]] = {}
 
   def fake_call(args):
@@ -41,7 +41,8 @@ def test_api_find_routes_person_to_people_lookup(monkeypatch):
   doc = api.find("person", "nina")
 
   assert doc["source"]["source"] == "owa-people"
-  assert captured["args"] == ["people", "lookup", "nina"]
+  # owa-people's real subcommand is `find`, not `lookup`.
+  assert captured["args"] == ["people", "find", "nina"]
 
 
 def test_api_inbox_queries_four_sources(monkeypatch):

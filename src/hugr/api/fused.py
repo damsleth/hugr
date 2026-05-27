@@ -119,8 +119,8 @@ def find(kind: str, query: str, *, k: int = 10) -> dict[str, Any]:
     """Typed search over the relevant underlying tool."""
     kind = kind.lower()
     routes: dict[str, tuple[str, str, list[str]]] = {
-        "person": ("owa-people", "lookup", ["people", "lookup", query]),
-        "people": ("owa-people", "lookup", ["people", "lookup", query]),
+        "person": ("owa-people", "find", ["people", "find", query]),
+        "people": ("owa-people", "find", ["people", "find", query]),
         "event": ("owa-cal", "events", ["cal", "events", "--search", query]),
         "message": ("owa-mail", "search", ["mail", "search", query]),
         "mail": ("owa-mail", "search", ["mail", "search", query]),
