@@ -21,6 +21,7 @@ classifiers = [
 ]
 dependencies = [
   "click>=8.1",
+  "hugr-conventions>=0.1",
 ]
 
 [project.urls]

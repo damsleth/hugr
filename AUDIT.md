@@ -112,18 +112,25 @@ The conformance table at the bottom of CONVENTIONS.md defines what
 
 These are not per-repo but apply to the suite as a whole:
 
-1. **Shared `redact()` utility.** Each tool currently has ad-hoc
-   logging; the spec requires a common redaction shape. Decide
-   whether this lives in a shared package (`hugr-conventions`?) or
-   is copy-pasted into each repo with a regression test ensuring
-   sync.
-2. **Doctor schema package.** The doctor JSON shape is shared
-   across every binary. Same decision: shared package or
-   copy-paste with tests.
-3. **Action envelope helpers.** Three lines of boilerplate per
-   action command across ~50 commands is enough to justify a
-   shared `emit_envelope()` helper.
+1. ~~**Shared `redact()` utility.**~~ **RESOLVED 2026-05-27.** Lives
+   in `hugr-conventions` (`redact()`); each tool drops its hand-rolled
+   copy and depends on the package.
+2. ~~**Doctor schema package.**~~ **RESOLVED 2026-05-27.**
+   `DoctorFinding` / `DoctorPayload` / `emit_doctor` ship from
+   `hugr-conventions`.
+3. ~~**Action envelope helpers.**~~ **RESOLVED 2026-05-27.**
+   `action_envelope` / `emit_action` / `data_error` / `emit_data_error`
+   and the NDJSON `stream_*` helpers ship from `hugr-conventions`.
 
-Recommendation: create `hugr-conventions` as a small shared Python
-package shipped from this repo. Each tool depends on it. Phase 3a
-work; track as an issue against `damsleth/hugr`.
+Recommendation (DONE): `hugr-conventions` is published from this repo
+under `packages/hugr-conventions/` (importable as `hugr_conventions`,
+zero runtime deps). `hugr` itself now depends on it - `src/hugr/
+conventions.py` is a thin tool-bound shim over `hugr_conventions.bind`.
+
+Remaining follow-up (per-repo, tracked against each sibling): swap
+each tool's copy-pasted `conventions.py` for a dependency on
+`hugr-conventions`, binding via `bind(tool, version)`. This is the
+mechanism that closes owa-tools block items 1 and 3 (the helpers
+exist there but were never wired into the CLIs) and the
+cognitive-ledger `sheep` JSON gap. As of 2026-05-27 no sibling has
+adopted the package yet.

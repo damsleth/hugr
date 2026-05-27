@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hugr-conventions"
+version = "0.1.0"
+description = "Shared CLI-contract primitives for the hugr memory suite: action/error envelopes, NDJSON streaming, doctor payloads, redaction, and the 0-5 exit-code taxonomy."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Carl Joakim Damsleth" }]
+keywords = ["hugr", "cli", "conventions", "envelope", "memory"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Environment :: Console",
+  "Development Status :: 4 - Beta",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/damsleth/hugr"
+Source = "https://github.com/damsleth/hugr/tree/main/packages/hugr-conventions"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hugr_conventions*"]
