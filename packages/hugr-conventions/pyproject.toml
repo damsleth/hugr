@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Shared CLI-contract primitives for the hugr memory suite: action/error envelopes, NDJSON streaming, doctor payloads, redaction, and the 0-5 exit-code taxonomy."
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 authors = [{ name = "Carl Joakim Damsleth" }]
 keywords = ["hugr", "cli", "conventions", "envelope", "memory"]
 classifiers = [
