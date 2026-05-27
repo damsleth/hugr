@@ -48,51 +48,86 @@ Severity legend:
 
 ---
 
-## owa-tools (`damsleth/owa-tools`, v0.1.x)
+## owa-tools (`damsleth/owa-tools`, v0.2.1)
 
-**Target**: v0.2.0 in Phase 2c. Eight binaries:
+**Target**: v0.2.0 in Phase 2c (shipped). Nine binaries:
 `owa`, `owa-cal`, `owa-mail`, `owa-graph`, `owa-doctor`,
-`owa-people`, `owa-sched`, `owa-drive`.
+`owa-people`, `owa-sched`, `owa-drive`, `owa-todo`.
+
+> **Reconciled 2026-05-27.** This section was written against the
+> 2026-05-12 snapshot, before owa-tools' Phase 2c work landed. During
+> that work owa-tools chose - and documented in its `AGENTS.md` - a
+> richer envelope/error model than the bare hugr CONVENTIONS.md
+> contract, deliberately diverging on two of the three "block" items.
+> The divergence is intentional and signed off; the items below are
+> reclassified accordingly rather than left as open gaps. The
+> contract surface owa-tools *does* share with the suite (the
+> `--doctor` payload, the 0-5 doctor taxonomy, `redact()`) now comes
+> from the shared `hugr-conventions` package (see cross-cutting).
 
 ### block
-1. **No action envelopes** on any action-class command (`owa-cal
-   create/update/delete`, `owa-mail send/reply/forward/delete/move/
-   mark`, `owa-graph post/put/patch/delete/batch`, `owa-drive
-   get/put/rm`, `owa-* refresh`). Helpers exist in
-   `owa_core/conventions.py` but are not wired into the CLI
-   implementations - they still emit raw data.
-2. **Destructive gating is schema-only.** `owa-cal delete`,
-   `owa-mail delete`, `owa-graph delete`, `owa-drive rm` advertise
-   the destructive flag in the schema and use TTY confirmation
-   prompts (e.g. `owa_mail/cli.py:474-507`), but do not enforce
-   `--yes` / `--confirm` per the envelope contract.
-3. **Exit codes** - the suite still uses the pre-hugr taxonomy
-   (`0/2/10-15/20`). The hugr 2/3/4/5 codes are defined in
-   `conventions.py` but only flow out of `--doctor`. Action
-   commands need to adopt them too.
+
+1. **No action envelopes** - **WON'T FIX (deliberate divergence).**
+   owa-tools' stable automation contract is the `--agent` /
+   `OWA_AGENT=1` envelope - `{"_owa": {suite,tool,version,
+   schema_version,command,profile}, "data": <result>}` - applied
+   uniformly to every command's JSON stdout by
+   `owa_core/modes.py:run_with_output_modes`. AGENTS.md documents
+   this as a permanent contract. owa-tools deliberately does not emit
+   the hugr per-command `{tool,version,command,ok,duration_ms,...}`
+   action envelope; the `--agent` wrapper is its equivalent and is
+   richer (carries suite/schema_version/profile). The
+   `action_envelope()` helpers are kept (now via `hugr-conventions`)
+   for the `--doctor` surface and any future opt-in, not as the
+   command-path default.
+
+2. **Destructive gating** - **DONE.** `owa_core/tty.py:
+   require_confirm_or_tty()` raises `UsageError` ("... refuses to run
+   non-interactively without --confirm") when neither `--confirm`/
+   `--yes` nor an interactive TTY is present. Wired into `owa-cal
+   delete`, `owa-mail delete`, `owa-drive rm`, etc. Non-interactive
+   refusal is enforced, not schema-only.
+
+3. **Exit codes** - **WON'T FIX (deliberate divergence).** owa-tools
+   keeps its own `0/2/10-15/20` taxonomy (`owa_core/errors.py:
+   ExitCode`) because it distinguishes network / auth-expired /
+   scope / not-found / rate-limited / conflict / internal - detail
+   the flat hugr 0-5 set cannot express. AGENTS.md confines the hugr
+   0-5 taxonomy to the `--doctor` surface and states command paths
+   must raise an `owa_core.errors` subclass, not return a
+   `conventions.EXIT_*` constant. Signed off.
 
 ### major
-4. **Explicit `--json` flag missing.** owa-tools is JSON-by-default,
-   but the explicit no-op `--json` alias (that also blocks isatty
-   heuristics) is not accepted on action subcommands.
-5. **NDJSON streaming on `owa-graph batch`** is not implemented.
-   Batch is the one long-running action and needs the streaming
-   contract under `--json`.
-6. **Reserved-key compliance on Graph passthrough.** Raw Graph
-   responses can contain a top-level `ok` field. Audit and wrap.
-7. **`--pretty` is documented but not wired.** Help text mentions
-   it and the schema references it, but there is no actual
-   `--pretty` flag on action commands - output is JSON-only with no
-   human-readable switch.
+
+4. **Explicit `--json` flag** - **N/A by design.** owa-tools is
+   JSON-by-default and never flips output on isatty heuristics, so
+   the hugr "assert I want JSON" need is moot; `--agent` is the
+   explicit machine-mode toggle. `--json` is accepted on the
+   `--help` / `--doctor` surfaces only.
+5. **NDJSON streaming on `owa-graph batch`** - **OPEN (optional
+   enhancement).** Verb commands (`GET --ndjson`) stream; `batch`
+   still emits a single envelope. Non-blocking under owa's model;
+   implement if batch grows large enough to warrant it.
+6. **Reserved-key (`ok`) on Graph passthrough** - **resolved by
+   envelope.** The `--agent` wrapper nests the raw Graph payload
+   under `data`, so a top-level `ok` in a Graph response never
+   collides with the discriminator. Raw (non-`--agent`) passthrough
+   does not claim hugr reserved-key compliance by design.
+7. **`--pretty` on action commands** - **by design / low priority.**
+   `--pretty` is wired on data commands (`messages`, `show`,
+   `folders`). Action commands return a compact JSON result; owa-tools
+   does not promise a human renderer for them.
 
 ### minor
-8. **Redaction sentinel test** specifically for message bodies in
-   `owa-mail send/reply/forward` failure paths. The generic
-   conventions sentinel test exists, but the body-redaction fixture
-   does not.
-9. **`owa-doctor` aggregator JSON shape** is not explicitly tested
-   against the per-binary doctor payloads that `hugr doctor` will
-   consume.
+8. **Redaction sentinel test** for message bodies in `owa-mail
+   send/reply/forward` failure paths - **OPEN (minor).** Generic
+   `redact()` sentinel coverage exists; a body-specific failure-path
+   fixture would tighten it.
+9. **`owa-doctor` aggregator JSON shape** vs per-binary payloads -
+   **PARTIAL.** `tests/doctor/test_cli_report.py` covers the
+   aggregate `build_report()` shape; an explicit cross-check that the
+   aggregated `siblings[]` entries match each binary's own `--doctor`
+   payload schema is still worth adding.
 
 ---
 
@@ -141,7 +176,11 @@ its full test suite stayed green:
 - **owa-piggy** — binds tool name + version; no stream helpers (the
   auth broker has no streaming actions). 283 passed.
 
-Note: adoption swaps the helper *source*; it does not by itself wire
-envelopes into owa-tools' action CLIs. The owa-tools block items
-(1 no action envelopes, 2 schema-only destructive gating, 3 exit-code
-taxonomy) remain open and still need per-command work in that repo.
+Note: adoption swaps the helper *source* for the shared `--doctor`
+surface; it does not (and is not meant to) impose the hugr action
+envelope on owa-tools' command paths. The owa-tools "block" items
+were reconciled on 2026-05-27 (see that section): blocks 1 and 3 are
+won't-fix deliberate divergences documented in owa-tools' AGENTS.md
+(the `--agent` envelope and the `0/2/10-15/20` taxonomy), and block 2
+was already implemented. No per-command owa-tools work is outstanding
+from this audit.
