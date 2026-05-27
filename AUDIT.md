@@ -104,10 +104,9 @@ Severity legend:
    the hugr "assert I want JSON" need is moot; `--agent` is the
    explicit machine-mode toggle. `--json` is accepted on the
    `--help` / `--doctor` surfaces only.
-5. **NDJSON streaming on `owa-graph batch`** - **OPEN (optional
-   enhancement).** Verb commands (`GET --ndjson`) stream; `batch`
-   still emits a single envelope. Non-blocking under owa's model;
-   implement if batch grows large enough to warrant it.
+5. **NDJSON streaming on `owa-graph batch`** - **DONE 2026-05-27.**
+   `owa-graph batch --ndjson` streams one sub-response per line
+   (mirrors the verb commands; mutually exclusive with `--pretty`).
 6. **Reserved-key (`ok`) on Graph passthrough** - **resolved by
    envelope.** The `--agent` wrapper nests the raw Graph payload
    under `data`, so a top-level `ok` in a Graph response never
@@ -120,9 +119,15 @@ Severity legend:
 
 ### minor
 8. **Redaction sentinel test** for message bodies in `owa-mail
-   send/reply/forward` failure paths - **OPEN (minor).** Generic
-   `redact()` sentinel coverage exists; a body-specific failure-path
-   fixture would tighten it.
+   send/reply/forward` failure paths - **DONE 2026-05-27, and it
+   caught a real bug.** Adding the fixture (`tests/mail/
+   test_redaction.py`, driving the real `owa_core.http` layer)
+   revealed that `owa_core.secrets.redact()` scrubbed only secret
+   *shapes*, not message-content fields - so `--debug`/`MAIL_DEBUG`
+   printed full email/event/task bodies to stderr suite-wide. Fixed
+   by adding body/content/text field redaction to `redact()` per
+   CONVENTIONS.md; covered by `tests/security/test_secrets.py` and the
+   new mail fixture.
 9. **`owa-doctor` aggregator JSON shape** vs per-binary payloads -
    **PARTIAL.** `tests/doctor/test_cli_report.py` covers the
    aggregate `build_report()` shape; an explicit cross-check that the
