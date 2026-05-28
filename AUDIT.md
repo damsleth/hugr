@@ -62,8 +62,9 @@ Severity legend:
 > The divergence is intentional and signed off; the items below are
 > reclassified accordingly rather than left as open gaps. The
 > contract surface owa-tools *does* share with the suite (the
-> `--doctor` payload, the 0-5 doctor taxonomy, `redact()`) now comes
-> from the shared `hugr-conventions` package (see cross-cutting).
+> `--doctor` payload, the 0-5 doctor taxonomy, `redact()`) is
+> vendored into `owa_core/conventions.py` - see cross-cutting for
+> the 2026-05-28 reversal away from a shared runtime package.
 
 ### block
 
@@ -77,9 +78,9 @@ Severity legend:
    the hugr per-command `{tool,version,command,ok,duration_ms,...}`
    action envelope; the `--agent` wrapper is its equivalent and is
    richer (carries suite/schema_version/profile). The
-   `action_envelope()` helpers are kept (now via `hugr-conventions`)
-   for the `--doctor` surface and any future opt-in, not as the
-   command-path default.
+   `action_envelope()` helpers are kept (now vendored in
+   `owa_core/conventions.py`) for the `--doctor` surface and any
+   future opt-in, not as the command-path default.
 
 2. **Destructive gating** - **DONE.** `owa_core/tty.py:
    require_confirm_or_tty()` raises `UsageError` ("... refuses to run
@@ -150,42 +151,59 @@ The conformance table at the bottom of CONVENTIONS.md defines what
 
 ## Cross-cutting issues
 
-These are not per-repo but apply to the suite as a whole:
+These are not per-repo but apply to the suite as a whole.
 
-1. ~~**Shared `redact()` utility.**~~ **RESOLVED 2026-05-27.** Lives
-   in `hugr-conventions` (`redact()`); each tool drops its hand-rolled
-   copy and depends on the package.
-2. ~~**Doctor schema package.**~~ **RESOLVED 2026-05-27.**
-   `DoctorFinding` / `DoctorPayload` / `emit_doctor` ship from
-   `hugr-conventions`.
-3. ~~**Action envelope helpers.**~~ **RESOLVED 2026-05-27.**
-   `action_envelope` / `emit_action` / `data_error` / `emit_data_error`
-   and the NDJSON `stream_*` helpers ship from `hugr-conventions`.
+### Shared contract: spec, not package (2026-05-28 reversal)
 
-Recommendation (DONE): `hugr-conventions` is published from this repo
-under `packages/hugr-conventions/` (importable as `hugr_conventions`,
-zero runtime deps). `hugr` itself now depends on it - `src/hugr/
-conventions.py` is a thin tool-bound shim over `hugr_conventions.bind`.
+CONVENTIONS.md is the spec. Each tool carries its own self-contained
+`conventions.py` implementation of that spec - **no shared runtime
+package, no cross-component install-time coupling**. Loose coupling
+between suite components is an axiom: yaams, cognitive-ledger,
+owa-piggy, owa-tools, and hugr each install and run on their own.
 
-Per-repo adoption (DONE 2026-05-27): every sibling carrying a
-copy-pasted `conventions.py` now depends on `hugr-conventions` and
-binds via the package instead. Each kept its tool-specific bits and
-its full test suite stayed green:
+The short-lived `hugr-conventions` PyPI package (introduced
+2026-05-27) was reversed:
 
-- **owa-tools** — binds suite version + owa's richer `redact()` (it
-  also scrubs attachment paths); keeps the `--doctor` redaction-
-  sentinel default payload. 1055 passed.
-- **cognitive-ledger** — keeps the `tool=` override (`sheep` stamps
-  its own name) and the in-tree `__version__` preference. 715 passed.
-- **yaams** — straight bind to tool name + `__version__`. 347 passed.
-- **owa-piggy** — binds tool name + version; no stream helpers (the
-  auth broker has no streaming actions). 283 passed.
+- **owa-tools** caught it first: v0.3.0 wheel was uninstallable
+  because `hugr-conventions` was never on PyPI, and the package
+  shape violated owa-tools' "no third-party runtime dependency"
+  rule. v0.3.1 vendored the contract back into
+  `owa_core/conventions.py`. See `owa-tools/CHANGELOG.md`.
+- **yaams, cognitive-ledger, owa-piggy** followed 2026-05-28:
+  `hugr-conventions>=0.1` removed from `pyproject.toml`,
+  `conventions.py` rewritten as self-contained. Tool-specific bits
+  preserved (ledger's `tool=` override for `sheep` and in-tree
+  `__version__` resolution; owa-piggy's omission of stream helpers).
+- **hugr** itself: `packages/hugr-conventions/` deleted from this
+  repo. `src/hugr/conventions.py` is now self-contained too. The
+  spec stays in `CONVENTIONS.md`; new tools copy from any existing
+  sibling.
 
-Note: adoption swaps the helper *source* for the shared `--doctor`
-surface; it does not (and is not meant to) impose the hugr action
-envelope on owa-tools' command paths. The owa-tools "block" items
-were reconciled on 2026-05-27 (see that section): blocks 1 and 3 are
-won't-fix deliberate divergences documented in owa-tools' AGENTS.md
-(the `--agent` envelope and the `0/2/10-15/20` taxonomy), and block 2
-was already implemented. No per-command owa-tools work is outstanding
-from this audit.
+Test results post-reversal: yaams 347, cognitive-ledger 720,
+owa-piggy 291, owa-tools 1055+ (already shipped 2026-05-27), hugr's
+conventions module 17/17.
+
+### Resolved items (kept for history)
+
+1. ~~**Shared `redact()` utility.**~~ **VENDORED 2026-05-28** (was
+   "shared package 2026-05-27"). Each tool carries its own
+   `redact()`; the spec in CONVENTIONS.md is what they share, not a
+   runtime import.
+2. ~~**Doctor schema.**~~ **VENDORED 2026-05-28.**
+   `DoctorFinding` / `DoctorPayload` live inside each tool's
+   `conventions.py`.
+3. ~~**Action envelope helpers.**~~ **VENDORED 2026-05-28.**
+   `action_envelope` / `emit_action` / `data_error` /
+   `emit_data_error` and the NDJSON `stream_*` helpers live inside
+   each tool's `conventions.py`.
+
+### Drift handling
+
+Contract drift is now managed by spec review of CONVENTIONS.md
+plus a per-tool re-vendor pass when the spec changes. The accepted
+tradeoff: contract evolution requires a touch in N repos instead of
+one, in exchange for each tool staying independently installable
+and free of cross-component runtime dependencies. The owa-tools
+divergences (`--agent` envelope, `0/2/10-15/20` exit-code taxonomy)
+remain signed-off deliberate departures from the shared `--doctor`
+surface.
