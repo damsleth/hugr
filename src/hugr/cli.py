@@ -1037,6 +1037,10 @@ def main() -> int:
   stderr. Exit codes follow Click's defaults: 2 for usage errors, 1
   for everything else.
   """
+  # Mark every subprocess spawned by hugr so children (yaams, ledger,
+  # owa-*) can tell their invocation came through hugr rather than
+  # directly from the user. Used by yaams's query provenance tagging.
+  os.environ.setdefault("HUGR_PASSTHROUGH", "1")
   try:
     return cli(standalone_mode=False) or 0
   except click.exceptions.UsageError as exc:
