@@ -116,12 +116,12 @@ def test_doctor_payload_minimal():
 
 def test_doctor_payload_full():
   d = DoctorPayload(
-    config_path="/etc/hugr/config.toml",
+    config_path="/etc/hugr/config.yaml",
     findings=[
       DoctorFinding(id="x", severity="error", message="m", hint="fix it"),
     ],
   ).to_dict()
-  assert d["config_path"] == "/etc/hugr/config.toml"
+  assert d["config_path"] == "/etc/hugr/config.yaml"
   assert d["findings"][0]["severity"] == "error"
   assert d["findings"][0]["hint"] == "fix it"
 

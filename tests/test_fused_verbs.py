@@ -91,7 +91,7 @@ def test_api_remember_returns_action_envelope(monkeypatch):
 
 def test_ask_cli_prints_json(monkeypatch, tmp_path: Path):
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  cfg = tmp_path / "hugr" / "config.toml"
+  cfg = tmp_path / "hugr" / "config.yaml"
   cfg.parent.mkdir(parents=True)
   cfg.write_text("version: 1\n")
 

@@ -49,7 +49,7 @@ def _yaams_config_path() -> Path:
   """Path to the master hugr config (the gate for the first-run guard).
 
   Named ``_yaams_config_path`` for historical continuity; the file it
-  points at is now ``$XDG_CONFIG_HOME/hugr/config.toml``, the suite
+  points at is now ``$XDG_CONFIG_HOME/hugr/config.yaml``, the suite
   master config. The actual yaams config it references lives wherever
   ``yaams_config:`` inside the master points - see
   ``hugr.config.resolved_yaams_config``.
@@ -831,7 +831,7 @@ def _yaams_config_env(full: tuple[str, ...]) -> dict[str, str]:
   should hand a yaams config to the child via env, else ``{}``.
 
   The path is resolved from the master hugr config
-  (``$XDG_CONFIG_HOME/hugr/config.toml``), falling back to the
+  (``$XDG_CONFIG_HOME/hugr/config.yaml``), falling back to the
   canonical ``$XDG_CONFIG_HOME/yaams/config.yaml``. yaams honors
   ``YAAMS_CONFIG`` natively, so forwarding the path through env keeps
   ``yaams <verb>`` and ``hugr <verb>`` resolving to the same config

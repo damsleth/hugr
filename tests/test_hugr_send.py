@@ -12,7 +12,7 @@ from hugr.cli import cli
 
 def _stub_config(tmp_path: Path, monkeypatch) -> None:
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-  cfg = tmp_path / "hugr" / "config.toml"
+  cfg = tmp_path / "hugr" / "config.yaml"
   cfg.parent.mkdir(parents=True)
   cfg.write_text("version: 1\n")
 

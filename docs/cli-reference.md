@@ -325,7 +325,7 @@ Listed in [config.md](config.md). The high-value ones:
 
 ```bash
 HUGR_HOME=...           # data root (default ~/.local/share/hugr)
-XDG_CONFIG_HOME=...     # config root; master at $XDG_CONFIG_HOME/hugr/config.toml
+XDG_CONFIG_HOME=...     # config root; master at $XDG_CONFIG_HOME/hugr/config.yaml
 HUGR_CONFIG=...         # override master config path
 HUGR_SESSION=...        # current session id (see sessions.md)
 HUGR_STATE_DIR=...      # state repo clone (see sync.md)

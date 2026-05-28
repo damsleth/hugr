@@ -2,7 +2,7 @@
 
 `hugr init` is the interactive first-run wizard. It probes your machine
 for ingest sources, resolves per-tool config paths, and writes the hugr
-master config at `$XDG_CONFIG_HOME/hugr/config.toml`.
+master config at `$XDG_CONFIG_HOME/hugr/config.yaml`.
 
 ## Idempotent by design
 
@@ -25,7 +25,7 @@ The three tools and their canonical paths:
 | owa-piggy | `$XDG_CONFIG_HOME/owa-piggy/profiles.conf` |
 
 The only file hugr ever writes during `init` is:
-1. The master config (`$XDG_CONFIG_HOME/hugr/config.toml`).
+1. The master config (`$XDG_CONFIG_HOME/hugr/config.yaml`).
 2. A new yaams config at the canonical location - but **only** if no
    yaams config exists yet and you confirm the prompt.
 
@@ -42,16 +42,16 @@ The only file hugr ever writes during `init` is:
 
 ## The master config
 
-After `hugr init` the master config is a flat TOML file with pointers
+After `hugr init` the master config is a flat YAML file with pointers
 to per-tool configs:
 
-```toml
-version = 1
-data_root = "~/.local/share/hugr"
-yaams_config = "~/.config/yaams/config.yaml"
-ledger_config = "~/.config/cognitive-ledger/config.yaml"
-owa_piggy_config = "~/.config/owa-piggy/profiles.conf"
-# default_owa_profile =  # optional: set to your preferred owa-piggy profile alias
+```yaml
+version: 1
+data_root: ~/.local/share/hugr
+yaams_config: ~/.config/yaams/config.yaml
+ledger_config: ~/.config/cognitive-ledger/config.yaml
+owa_piggy_config: ~/.config/owa-piggy/profiles.conf
+# default_owa_profile:  # optional: set to your preferred owa-piggy profile alias
 ```
 
 Edit this file freely. `hugr init` overwrites it only when you confirm,

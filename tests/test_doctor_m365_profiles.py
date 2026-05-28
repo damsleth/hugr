@@ -107,9 +107,9 @@ class TestM365ProfilesUnit:
   def test_is_default_flag_set_from_master_config(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     # Write a master config that names "work" as default.
-    master = tmp_path / "hugr" / "config.toml"
+    master = tmp_path / "hugr" / "config.yaml"
     master.parent.mkdir(parents=True)
-    master.write_text("version = 1\ndefault_owa_profile = \"work\"\n")
+    master.write_text("version: 1\ndefault_owa_profile: work\n")
 
     from hugr.commands.doctor import _m365_profiles
     payload = json.dumps([
@@ -184,9 +184,9 @@ class TestDoctorHumanRenderM365:
 
   def test_default_tag_appears_next_to_default_profile(self, monkeypatch, tmp_path: Path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    master = tmp_path / "hugr" / "config.toml"
+    master = tmp_path / "hugr" / "config.yaml"
     master.parent.mkdir(parents=True)
-    master.write_text("version = 1\ndefault_owa_profile = \"work\"\n")
+    master.write_text("version: 1\ndefault_owa_profile: work\n")
     _patch_fanout(monkeypatch)
     payload = json.dumps([{"name": "work"}, {"name": "personal"}])
     proc = _make_proc(stdout=payload)

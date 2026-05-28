@@ -141,9 +141,9 @@ def test_push_writes_encrypted_master_config(tmp_path: Path, monkeypatch, fake_a
   _init_bare_upstream(bare)
 
   # Seed a master config so _snapshot_targets() finds it
-  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.toml"
+  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.yaml"
   cfg.parent.mkdir(parents=True)
-  cfg.write_text("version = 1\n")
+  cfg.write_text("version: 1\n")
 
   # Identify git author for the commit
   monkeypatch.setenv("GIT_AUTHOR_NAME", "T")
@@ -160,7 +160,7 @@ def test_push_writes_encrypted_master_config(tmp_path: Path, monkeypatch, fake_a
   blob = snapshot.read_bytes()
   assert blob.startswith(b"AGE-FAKE\n")
   decoded = gzip.decompress(blob.removeprefix(b"AGE-FAKE\n"))
-  assert decoded == b"version = 1\n"
+  assert decoded == b"version: 1\n"
 
 
 def _tracked_files(repo: Path) -> list[str]:
@@ -203,9 +203,9 @@ def test_push_never_tracks_private_identity(tmp_path: Path, monkeypatch, fake_ag
   bare = tmp_path / "upstream.git"
   _init_bare_upstream(bare)
 
-  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.toml"
+  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.yaml"
   cfg.parent.mkdir(parents=True)
-  cfg.write_text("version = 1\n")
+  cfg.write_text("version: 1\n")
 
   sync_mod.init(str(bare))
   envelope = sync_mod.push()
@@ -224,9 +224,9 @@ def test_push_untracks_previously_committed_identity(tmp_path: Path, monkeypatch
   bare = tmp_path / "upstream.git"
   _init_bare_upstream(bare)
 
-  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.toml"
+  cfg = Path(os.environ["XDG_CONFIG_HOME"]) / "hugr" / "config.yaml"
   cfg.parent.mkdir(parents=True)
-  cfg.write_text("version = 1\n")
+  cfg.write_text("version: 1\n")
 
   sync_mod.init(str(bare))
 

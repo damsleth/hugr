@@ -24,7 +24,7 @@ def test_should_not_offer_when_master_present(monkeypatch, tmp_path: Path):
   monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
   monkeypatch.setattr("sys.stdin.isatty", lambda: True)
   monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-  master = tmp_path / "hugr" / "config.toml"
+  master = tmp_path / "hugr" / "config.yaml"
   master.parent.mkdir(parents=True)
   master.write_text("version: 1\n")
   assert _first_run_should_offer_init(as_json_top=False) is False

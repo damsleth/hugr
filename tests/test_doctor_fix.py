@@ -40,7 +40,7 @@ def test_doctor_fix_without_yes_reports_pending(monkeypatch, tmp_path: Path):
   fix = doc["fixes_applied"][0]
   assert fix["id"] == "missing_hugr_config"
   assert fix["applied"] is False
-  assert not (tmp_path / "hugr" / "config.toml").exists()
+  assert not (tmp_path / "hugr" / "config.yaml").exists()
 
 
 def test_doctor_fix_yes_runs_quick_bootstrap(monkeypatch, tmp_path: Path):
@@ -61,7 +61,7 @@ def test_doctor_fix_yes_runs_quick_bootstrap(monkeypatch, tmp_path: Path):
   fix = doc["fixes_applied"][0]
   assert fix["applied"] is True
 
-  master = tmp_path / "hugr" / "config.toml"
+  master = tmp_path / "hugr" / "config.yaml"
   yaams_cfg = tmp_path / "yaams" / "config.yaml"
   assert master.is_file()
   assert yaams_cfg.is_file()

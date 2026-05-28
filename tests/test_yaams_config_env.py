@@ -26,7 +26,7 @@ def _make_cfg(tmp_path: Path) -> Path:
   yaams_cfg = tmp_path / "yaams" / "config.yaml"
   yaams_cfg.parent.mkdir(parents=True)
   yaams_cfg.write_text("db_path: /tmp/x.db\n")
-  master = tmp_path / "hugr" / "config.toml"
+  master = tmp_path / "hugr" / "config.yaml"
   master.parent.mkdir(parents=True)
   master.write_text(f"version: 1\nyaams_config: {yaams_cfg}\n")
   return yaams_cfg

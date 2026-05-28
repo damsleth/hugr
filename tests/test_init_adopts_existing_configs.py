@@ -65,7 +65,7 @@ def test_init_does_not_mutate_existing_yaams_config(monkeypatch, tmp_path: Path)
   )
 
   # Master config must record the adopted path.
-  master = read_master(tmp_path / "hugr" / "config.toml")
+  master = read_master(tmp_path / "hugr" / "config.yaml")
   assert master.get("yaams_config") == str(yaams_cfg)
 
 
@@ -98,7 +98,7 @@ def test_init_does_not_mutate_existing_ledger_config(monkeypatch, tmp_path: Path
     "hugr init mutated the existing ledger config"
   )
 
-  master = read_master(tmp_path / "hugr" / "config.toml")
+  master = read_master(tmp_path / "hugr" / "config.yaml")
   assert master.get("ledger_config") == str(ledger_cfg)
 
 
@@ -131,7 +131,7 @@ def test_init_does_not_mutate_existing_owa_piggy_config(monkeypatch, tmp_path: P
     "hugr init mutated the existing owa-piggy config"
   )
 
-  master = read_master(tmp_path / "hugr" / "config.toml")
+  master = read_master(tmp_path / "hugr" / "config.yaml")
   assert master.get("owa_piggy_config") == str(owa_cfg)
 
 

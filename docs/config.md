@@ -8,7 +8,7 @@ configs you (or the wizard) already have.
 ```
 $XDG_CONFIG_HOME/                 (default: ~/.config)
 ├── hugr/
-│   └── config.toml               # master config
+│   └── config.yaml               # master config
 ├── yaams/
 │   └── config.yaml               # adopted in place; hugr never edits this
 ├── cognitive-ledger/
@@ -26,23 +26,23 @@ $HUGR_HOME/                       (default: ~/.local/share/hugr)
 
 ## Master config
 
-`hugr init` writes `$XDG_CONFIG_HOME/hugr/config.toml`. The file is
-flat TOML; you can edit it freely.
+`hugr init` writes `$XDG_CONFIG_HOME/hugr/config.yaml`. The file is
+flat YAML; you can edit it freely.
 
-```toml
-version = 1
-data_root = "~/.local/share/hugr"
+```yaml
+version: 1
+data_root: ~/.local/share/hugr
 
 # Pointers to the per-tool configs. hugr resolves these at runtime
 # and passes them through as env vars (e.g. YAAMS_CONFIG) when it
 # spawns subprocesses.
-yaams_config = "~/.config/yaams/config.yaml"
-ledger_config = "~/.config/cognitive-ledger/config.yaml"
-owa_piggy_config = "~/.config/owa-piggy/profiles.conf"
+yaams_config: ~/.config/yaams/config.yaml
+ledger_config: ~/.config/cognitive-ledger/config.yaml
+owa_piggy_config: ~/.config/owa-piggy/profiles.conf
 
 # Optional. If set, owa-piggy verbs invoked through hugr default to
 # this profile. Selectable per-invocation via OWA_PROFILE=...
-# default_owa_profile = "personal"
+# default_owa_profile: personal
 ```
 
 What it does NOT contain:
@@ -146,7 +146,7 @@ Subcommands that depend on the yaams DB (`recall`, `find`, `inbox`,
 refuse to run when no master config exists. They exit code 4 with:
 
 ```
-x hugr: no hugr config at /Users/.../config.toml.
+x hugr: no hugr config at /Users/.../config.yaml.
     Fix:  hugr init
 ```
 
@@ -175,7 +175,7 @@ master config to make one of them the implicit default.
 
 | Tool | macOS | Linux |
 | --- | --- | --- |
-| hugr master | `~/.config/hugr/config.toml` | `~/.config/hugr/config.toml` |
+| hugr master | `~/.config/hugr/config.yaml` | `~/.config/hugr/config.yaml` |
 | yaams | `~/.config/yaams/config.yaml` | `~/.config/yaams/config.yaml` |
 | cognitive-ledger | `~/.config/cognitive-ledger/config.yaml` | same |
 | owa-piggy profiles | `~/.config/owa-piggy/profiles.conf` | same |

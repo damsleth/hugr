@@ -12,7 +12,7 @@ hugr doctor --json | jq '.findings'
 Symptom:
 
 ```
-x hugr: no hugr config at /Users/.../config.toml.
+x hugr: no hugr config at /Users/.../config.yaml.
     Fix:  hugr init
 ```
 

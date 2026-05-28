@@ -117,7 +117,7 @@ def test_init_aborts_when_brew_install_fails(monkeypatch, tmp_path: Path):
   result = CliRunner().invoke(cli, ["init"], input="y\ny\n")
   assert result.exit_code == 5
   assert "brew install" in (result.output + (result.stderr_bytes or b"").decode())
-  assert not (tmp_path / "hugr" / "config.toml").exists()
+  assert not (tmp_path / "hugr" / "config.yaml").exists()
 
 
 def test_init_continues_when_user_skips_install(monkeypatch, tmp_path: Path):
@@ -132,7 +132,7 @@ def test_init_continues_when_user_skips_install(monkeypatch, tmp_path: Path):
   # continue?, install yaams?(n), install ledger?(n), install owa-piggy?(n), install owa-tools?(n)
   result = CliRunner().invoke(cli, ["init"], input="y\nn\nn\nn\nn\n")
   assert result.exit_code == 0, result.output
-  assert (tmp_path / "hugr" / "config.toml").is_file()
+  assert (tmp_path / "hugr" / "config.yaml").is_file()
   assert "Deferred:" in result.output
   assert "yaams" in result.output
   assert "owa-piggy" in result.output

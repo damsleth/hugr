@@ -19,7 +19,7 @@ Behavior:
      interactive prompts for alias + email). owa-tools has no
      config of its own, so state B does not apply.
    - State C (installed + configured): reuse in place, no prompt.
-4. Write the master ``$XDG_CONFIG_HOME/hugr/config.toml`` with the
+4. Write the master ``$XDG_CONFIG_HOME/hugr/config.yaml`` with the
    resolved tool paths and hugr-specific settings.
 5. Run ``yaams setup``, ``yaams init-db``, ``yaams ingest --dry-run``
    if yaams is on PATH.

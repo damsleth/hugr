@@ -59,7 +59,7 @@ What it does:
    Obsidian, and an existing cognitive-ledger.
 2. Adopts any existing tool configs it finds **in place** (it never
    moves, copies, or rewrites them - see [init.md](init.md)).
-3. Writes the master config at `$XDG_CONFIG_HOME/hugr/config.toml`.
+3. Writes the master config at `$XDG_CONFIG_HOME/hugr/config.yaml`.
 4. Runs `yaams setup`, `yaams init-db`, and `yaams ingest --dry-run`
    to validate the new bootstrap when `yaams` is on PATH.
 5. Skips embedding-model downloads unless you pass `--with-models`.
@@ -133,7 +133,7 @@ brew uninstall damsleth/tap/hugr   # plus each component if you want them gone t
 pipx uninstall hugr-cli
 ```
 
-The master config at `~/.config/hugr/config.toml` and the data root
+The master config at `~/.config/hugr/config.yaml` and the data root
 at `~/.local/share/hugr/` are not removed automatically - delete them
 by hand if you want a clean wipe. The per-tool configs (yaams, ledger,
 owa-piggy) live under their own XDG paths and outlive hugr.

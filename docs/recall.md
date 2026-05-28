@@ -161,11 +161,11 @@ See [sessions.md](sessions.md).
 ## First-run guard
 
 All three verbs require a master config at
-`$XDG_CONFIG_HOME/hugr/config.toml`. Without one, hugr exits with
+`$XDG_CONFIG_HOME/hugr/config.yaml`. Without one, hugr exits with
 code 4 and prints:
 
 ```
-x hugr: no hugr config at /Users/.../config.toml.
+x hugr: no hugr config at /Users/.../config.yaml.
     Fix:  hugr init
 ```
 
