@@ -83,6 +83,13 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     rewrite=_passthrough(["ingest"]),
     description="Ingest all configured sources into YAAMS",
   ),
+  ("sources",): Mapping(
+    binary="yaams",
+    rewrite=_passthrough(["sources"]),
+    description="Toggle which ingest sources are enabled (interactive)",
+    interactive=True,
+    json_policy="none",
+  ),
   ("query",): Mapping(
     binary="yaams",
     rewrite=_query_rewrite,

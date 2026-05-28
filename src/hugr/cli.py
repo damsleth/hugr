@@ -64,6 +64,7 @@ _VERBS_NEEDING_CONFIG = {
   ("remember",),
   ("query",),
   ("ingest",),
+  ("sources",),
   ("promote", "review"),
   ("promote", "generate"),
 }
@@ -90,6 +91,7 @@ _BYPASS_ENV_BY_VERB: dict[tuple[str, ...], tuple[str, ...]] = {
   ("remember",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("query",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("ingest",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
+  ("sources",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("promote", "review"): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("promote", "generate"): ("YAAMS_CONFIG", "HUGR_CONFIG"),
 }
@@ -880,6 +882,7 @@ def _make_passthrough(name: str, head: tuple[str, ...]):
 # Translation-table-driven Click commands.
 query_cmd = _make_passthrough("query", ("query",))
 ingest_cmd = _make_passthrough("ingest", ("ingest",))
+sources_cmd = _make_passthrough("sources", ("sources",))
 promote_cmd = _make_passthrough("promote", ("promote",))
 ledger_cmd = _make_passthrough("ledger", ("ledger",))
 auth_cmd = _make_passthrough("auth", ("auth",))
