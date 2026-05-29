@@ -12,10 +12,13 @@ from __future__ import annotations
 from textual.app import App
 
 from hugr.tui.screens.ask import AskScreen
+from hugr.tui.screens.book import BookScreen
 from hugr.tui.screens.doctor import DoctorScreen
 from hugr.tui.screens.find import FindScreen
 from hugr.tui.screens.inbox import InboxScreen
 from hugr.tui.screens.remember import RememberScreen
+from hugr.tui.screens.send_invite import SendInviteScreen
+from hugr.tui.screens.send_mail import SendMailScreen
 from hugr.tui.screens.session import SessionScreen
 
 CSS = """
@@ -85,6 +88,15 @@ class HugrApp(App):
 
   def action_remember_screen(self) -> None:
     self._navigate_to(RememberScreen)
+
+  def action_send_mail_screen(self) -> None:
+    self._navigate_to(SendMailScreen)
+
+  def action_send_invite_screen(self) -> None:
+    self._navigate_to(SendInviteScreen)
+
+  def action_book_screen(self) -> None:
+    self._navigate_to(BookScreen)
 
 
 def run() -> None:
