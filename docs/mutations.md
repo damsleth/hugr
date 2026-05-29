@@ -241,8 +241,10 @@ Exit codes follow [CONVENTIONS.md](../CONVENTIONS.md):
 - `4` not found (or out-of-range slot, or missing master config)
 - `5` partial success
 
-When `--verbose` is set, the captured stderr from the failed child
-prints to stderr above the envelope.
+When `-v`/`--verbose`/`--debug` is set (e.g. `hugr -v send mail ...`),
+hugr forwards verbose mode to the underlying tool (owa-mail/owa-cal)
+and streams its diagnostics — redacted — to stderr, leaving the JSON
+envelope on stdout untouched.
 
 ## Web mutations
 

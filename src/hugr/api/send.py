@@ -81,10 +81,12 @@ def send_mail(
     cc: Sequence[str] = (),
     bcc: Sequence[str] = (),
     html: bool = False,
+    verbose: bool = False,
 ) -> dict[str, Any]:
     """Send mail via ``owa-mail send``.
 
     Recipients are joined with commas to match the owa-mail CLI shape.
+    ``verbose`` forwards the user's -v/--debug intent to owa-mail.
     """
     args = [
         "mail", "send",
@@ -100,7 +102,7 @@ def send_mail(
         args.extend(["--bcc", bcc_joined])
     if html:
         args.append("--html")
-    rc, raw = _call(args)
+    rc, raw = _call(args, verbose=verbose)
     return _envelope(
         "send mail",
         request={
@@ -129,6 +131,7 @@ def send_invite(
     body: str | None = None,
     category: str | None = None,
     showas: str | None = None,
+    verbose: bool = False,
 ) -> dict[str, Any]:
     """Create a calendar event via ``owa-cal create``.
 
@@ -152,7 +155,7 @@ def send_invite(
         args.extend(["--category", category])
     if showas is not None:
         args.extend(["--showas", showas])
-    rc, raw = _call(args)
+    rc, raw = _call(args, verbose=verbose)
     return _envelope(
         "send invite",
         request={

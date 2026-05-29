@@ -20,7 +20,7 @@ def _stub_config(tmp_path: Path, monkeypatch) -> None:
 def test_api_send_mail_builds_argv_and_envelopes_result(monkeypatch):
   captured: dict[str, list[str]] = {}
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     captured["args"] = list(args)
     return 0, b'{"ok":true,"id":"AAMkAG..."}'
 
@@ -52,7 +52,7 @@ def test_api_send_mail_builds_argv_and_envelopes_result(monkeypatch):
 
 
 def test_api_send_mail_failure_surfaces_error(monkeypatch):
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     return 2, b'{"ok":false,"error":{"code":"auth"}}'
 
   monkeypatch.setattr(send_mod, "_call", fake_call)
@@ -66,7 +66,7 @@ def test_api_send_mail_failure_surfaces_error(monkeypatch):
 def test_api_send_invite_omits_unset_flags(monkeypatch):
   captured: dict[str, list[str]] = {}
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     captured["args"] = list(args)
     return 0, b'{"id":"evt-1"}'
 
@@ -104,7 +104,7 @@ def test_send_mail_cli_with_yes_calls_api_and_prints_envelope(monkeypatch, tmp_p
   _stub_config(tmp_path, monkeypatch)
   captured: dict[str, dict] = {}
 
-  def fake_send_mail(to, subject, body, *, cc, bcc, html):
+  def fake_send_mail(to, subject, body, *, cc, bcc, html, verbose=False):
     captured["kwargs"] = {
       "to": list(to),
       "subject": subject,

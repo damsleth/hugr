@@ -43,8 +43,9 @@ def _append_source(
     source: str,
     command: str,
     verb_args: Sequence[str],
+    verbose: bool = False,
 ) -> None:
-    rc, raw = _call(list(verb_args))
+    rc, raw = _call(list(verb_args), verbose=verbose)
     item = _source_result(source, command, rc, raw)
     out.append(item)
     if not item["ok"]:
@@ -71,7 +72,7 @@ def _citation_for(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
+def recall(question: str, *, k: int = 10, live: bool = True, verbose: bool = False) -> dict[str, Any]:
     """Ask across YAAMS/Tier 2 plus opportunistic live M365 buckets."""
     sources: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -82,6 +83,7 @@ def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
         source="yaams",
         command="query",
         verb_args=["query", question],
+        verbose=verbose,
     )
     if live:
         _append_source(
@@ -90,6 +92,7 @@ def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
             source="owa-cal",
             command="events",
             verb_args=["cal", "events", "--search", question],
+            verbose=verbose,
         )
         _append_source(
             sources,
@@ -97,6 +100,7 @@ def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
             source="owa-mail",
             command="search",
             verb_args=["mail", "search", question],
+            verbose=verbose,
         )
 
     doc = {
@@ -115,7 +119,7 @@ def recall(question: str, *, k: int = 10, live: bool = True) -> dict[str, Any]:
     return doc
 
 
-def find(kind: str, query: str, *, k: int = 10) -> dict[str, Any]:
+def find(kind: str, query: str, *, k: int = 10, verbose: bool = False) -> dict[str, Any]:
     """Typed search over the relevant underlying tool."""
     kind = kind.lower()
     routes: dict[str, tuple[str, str, list[str]]] = {
@@ -128,7 +132,7 @@ def find(kind: str, query: str, *, k: int = 10) -> dict[str, Any]:
         "file": ("yaams", "query", ["query", query]),
     }
     source, command, verb_args = routes.get(kind, ("yaams", "query", ["query", query]))
-    rc, raw = _call(verb_args)
+    rc, raw = _call(verb_args, verbose=verbose)
     result = _source_result(source, command, rc, raw)
     return {
         "tool": "hugr",
@@ -146,7 +150,7 @@ def find(kind: str, query: str, *, k: int = 10) -> dict[str, Any]:
     }
 
 
-def inbox() -> dict[str, Any]:
+def inbox(*, verbose: bool = False) -> dict[str, Any]:
     """Build the cross-tool inbox view."""
     sources: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
@@ -162,6 +166,7 @@ def inbox() -> dict[str, Any]:
             source=source,
             command=command,
             verb_args=verb_args,
+            verbose=verbose,
         )
     doc = {
         "tool": "hugr",
@@ -208,6 +213,7 @@ def remember(
     note_type: str = "fact",
     links: Sequence[str] = (),
     yes: bool = False,
+    verbose: bool = False,
 ) -> dict[str, Any]:
     """Promote a one-off fact directly into the ledger layer."""
     args = ["ledger", "notes", "add", "--type", note_type]
@@ -216,7 +222,7 @@ def remember(
     if yes:
         args.append("--yes")
     args.append(fact_text)
-    rc, raw = _call(args)
+    rc, raw = _call(args, verbose=verbose)
     decoded = _decode_json(raw)
     ok = rc == 0
     if isinstance(decoded, dict) and decoded.get("ok") is False:

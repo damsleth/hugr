@@ -90,7 +90,7 @@ def test_passthrough_run_forwards_extra_env(monkeypatch):
   from hugr.commands import passthrough
   captured: dict[str, object] = {}
 
-  def _fake(argv, *, extra_env=None):
+  def _fake(argv, *, extra_env=None, echo_stderr=False):
     captured["argv"] = list(argv)
     captured["extra_env"] = extra_env
     return 0, '{"tool":"yaams","ok":true}\n', ""
@@ -114,7 +114,7 @@ def test_api_passthrough_injects_yaams_config(monkeypatch, tmp_path: Path):
 
   captured: dict[str, object] = {}
 
-  def _fake(argv, *, extra_env=None):
+  def _fake(argv, *, extra_env=None, echo_stderr=False):
     captured["argv"] = list(argv)
     captured["extra_env"] = extra_env
     return 0, b'{"tool":"yaams","ok":true}', ""

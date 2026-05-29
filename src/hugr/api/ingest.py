@@ -92,6 +92,7 @@ def fused_ingest(
     promote: bool = False,
     yes: bool = False,
     raw: bool = False,
+    verbose: bool = False,
     extra_args: list[str] | None = None,
 ) -> dict[str, Any]:
     """Orchestrate the fused ingest pipeline.
@@ -114,6 +115,11 @@ def fused_ingest(
         orchestrator is not invoked; the caller handles routing.
         When ``raw=True`` this function returns a minimal sentinel
         envelope -- the CLI layer is responsible for the real dispatch.
+    verbose:
+        Forward the user's -v/--verbose/--debug intent to the child
+        tools (``yaams ingest -v`` streams DEBUG logs to stderr). The
+        forwarding is row-gated in the router, so stages whose verb has
+        no verbose mechanism are unaffected.
     extra_args:
         Additional argv forwarded verbatim to ``yaams ingest``.
     """
@@ -145,7 +151,7 @@ def fused_ingest(
     if dry_run:
         ingest_argv.append("--dry-run")
 
-    rc_ingest, raw_ingest = _call(ingest_argv)
+    rc_ingest, raw_ingest = _call(ingest_argv, verbose=verbose)
     ingest_data = _decode(raw_ingest)
 
     if rc_ingest != 0:
@@ -194,7 +200,7 @@ def fused_ingest(
     # ------------------------------------------------------------------
     # Stage 2: yaams promote generate (candidate sweep)
     # ------------------------------------------------------------------
-    rc_gen, raw_gen = _call(["promote", "generate"])
+    rc_gen, raw_gen = _call(["promote", "generate"], verbose=verbose)
     gen_data = _decode(raw_gen)
     candidates_generated: int | None = None
     partial = False

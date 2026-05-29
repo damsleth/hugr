@@ -21,8 +21,17 @@ Subcommands:
 - drive   - passthrough to `owa-drive`
 
 Top-level flags: --version (Click default), --doctor, --json,
---verbose. The doctor flag is wired so `hugr --doctor` works for
-parity with other binaries in the suite.
+-v/--verbose/--debug. The doctor flag is wired so `hugr --doctor`
+works for parity with other binaries in the suite.
+
+Verbose forwarding: -v/--verbose/--debug (accepted both before the
+verb, ``hugr -v ingest``, and after it, ``hugr ingest --verbose``) is
+forwarded to the underlying tool so you can see what's happening under
+the hood. The mechanism is per-tool (env var for owa-*, ``-v`` for
+yaams ingest, ``--verbose`` for ledger loops/notes) and declared in
+router.py; the child's diagnostic stderr is then streamed back
+(redacted). Tools with no verbose mechanism upstream (owa-piggy auth,
+yaams query) are a safe no-op.
 
 First-run hint middleware: subcommands that depend on the yaams DB
 (query, ingest, promote review) exit 4 with a clean
@@ -79,6 +88,39 @@ _VERBS_NEEDING_CONFIG = {
 def _explicit_config_in_args(args: tuple[str, ...]) -> bool:
   """True iff the user passed --config / --config=... themselves."""
   return explicit_config_in_args(args)
+
+
+# Verbose tokens hugr recognizes after the verb. The top-level group
+# only sees -v/--verbose/--debug when they precede the subcommand
+# (`hugr -v ingest`); the natural `hugr ingest --verbose` lands in the
+# subcommand's trailing args instead. We strip them there and re-forward
+# through the router's per-tool strategy so placement and flag-name
+# differences between tools don't matter.
+_VERBOSE_TOKENS = frozenset({"-v", "--verbose", "--debug"})
+
+
+def _split_verbose(args: tuple[str, ...]) -> tuple[tuple[str, ...], bool]:
+  """Strip any trailing verbose tokens; return (remaining, found).
+
+  Keeps everything after a ``--`` separator verbatim so a literal
+  ``--verbose`` payload (e.g. a search query token) is not swallowed.
+  """
+  kept: list[str] = []
+  found = False
+  passthrough_rest = False
+  for tok in args:
+    if passthrough_rest:
+      kept.append(tok)
+      continue
+    if tok == "--":
+      passthrough_rest = True
+      kept.append(tok)
+      continue
+    if tok in _VERBOSE_TOKENS:
+      found = True
+      continue
+    kept.append(tok)
+  return tuple(kept), found
 
 
 # Env vars that bypass the first-run guard, scoped to the verb that
@@ -155,9 +197,14 @@ def _ensure_config(verb_args: tuple[str, ...]) -> int | None:
 @click.option(
   "-v",
   "--verbose",
+  "--debug",
+  "verbose",
   is_flag=True,
   default=False,
-  help="Verbose mode: dump captured stderr from subprocess failures.",
+  help=(
+    "Verbose mode: forward -v/--debug to the underlying tool (yaams, "
+    "ledger, owa-*) and dump captured stderr on subprocess failure."
+  ),
 )
 @click.pass_context
 def cli(ctx: click.Context, doctor: bool, as_json_top: bool, verbose: bool) -> None:
@@ -289,7 +336,12 @@ def recall_cmd(ctx: click.Context, question: tuple[str, ...], limit: int, no_liv
   if hint is not None:
     ctx.exit(hint)
   from hugr import api
-  doc = api.recall(_question_from_parts(question), k=limit, live=not no_live)
+  doc = api.recall(
+    _question_from_parts(question),
+    k=limit,
+    live=not no_live,
+    verbose=ctx.obj.get("verbose", False),
+  )
   if pretty and not (as_json or ctx.obj.get("json", False)):
     _emit_fused_pretty(doc)
   else:
@@ -309,7 +361,12 @@ def find_cmd(ctx: click.Context, kind: str, query: tuple[str, ...], limit: int, 
   if hint is not None:
     ctx.exit(hint)
   from hugr import api
-  doc = api.find(kind, _question_from_parts(query), k=limit)
+  doc = api.find(
+    kind,
+    _question_from_parts(query),
+    k=limit,
+    verbose=ctx.obj.get("verbose", False),
+  )
   if pretty and not (as_json or ctx.obj.get("json", False)):
     _emit_fused_pretty(doc)
   else:
@@ -326,7 +383,7 @@ def inbox_cmd(ctx: click.Context, as_json: bool, pretty: bool) -> None:
   if hint is not None:
     ctx.exit(hint)
   from hugr import api
-  doc = api.inbox()
+  doc = api.inbox(verbose=ctx.obj.get("verbose", False))
   if pretty and not (as_json or ctx.obj.get("json", False)):
     _emit_fused_pretty(doc)
   else:
@@ -355,7 +412,13 @@ def remember_cmd(
   if hint is not None:
     ctx.exit(hint)
   from hugr import api
-  doc = api.remember(_question_from_parts(fact), note_type=note_type, links=links, yes=yes)
+  doc = api.remember(
+    _question_from_parts(fact),
+    note_type=note_type,
+    links=links,
+    yes=yes,
+    verbose=ctx.obj.get("verbose", False),
+  )
   if pretty and not (as_json or ctx.obj.get("json", False)):
     if doc.get("ok"):
       click.echo("remembered")
@@ -456,7 +519,11 @@ def send_mail_cmd(
   if blocked is not None:
     ctx.exit(blocked)
   from hugr import api
-  doc = api.send_mail(list(to), subject, body, cc=list(cc), bcc=list(bcc), html=html)
+  doc = api.send_mail(
+    list(to), subject, body,
+    cc=list(cc), bcc=list(bcc), html=html,
+    verbose=ctx.obj.get("verbose", False),
+  )
   if pretty and not as_json_eff:
     _emit_action_pretty(doc)
   else:
@@ -505,6 +572,7 @@ def send_invite_cmd(
     body=body,
     category=category,
     showas=showas,
+    verbose=ctx.obj.get("verbose", False),
   )
   if pretty and not as_json_eff:
     _emit_action_pretty(doc)
@@ -543,6 +611,7 @@ def book_propose_cmd(
     date=date,
     week=week,
     year=year,
+    verbose=ctx.obj.get("verbose", False),
   )
   if pretty and not as_json_eff:
     click.echo(f"hugr book propose: {doc.get('proposed_subject') or ''}")
@@ -600,6 +669,7 @@ def book_commit_cmd(
   if blocked is not None:
     ctx.exit(blocked)
   from hugr import api
+  verbose = ctx.obj.get("verbose", False)
   intent_text = _question_from_parts(intent)
   proposal = api.schedule(
     intent_text,
@@ -608,6 +678,7 @@ def book_commit_cmd(
     date=date,
     week=week,
     year=year,
+    verbose=verbose,
   )
   slots = proposal.get("slots") or []
   if not slots or slot_idx < 0 or slot_idx >= len(slots):
@@ -636,6 +707,7 @@ def book_commit_cmd(
     location=location,
     body=body,
     category=category,
+    verbose=verbose,
   )
   if pretty and not as_json_eff:
     _emit_action_pretty(doc)
@@ -873,6 +945,12 @@ def _make_passthrough(name: str, head: tuple[str, ...]):
   @click.argument("args", nargs=-1, type=click.UNPROCESSED)
   @click.pass_context
   def _cmd(ctx: click.Context, args: tuple[str, ...]) -> None:
+    # Accept `hugr <verb> --verbose` as well as `hugr -v <verb>`: strip
+    # any verbose token from the tail and route the intent through the
+    # router's per-tool forwarding rather than passing the flag verbatim
+    # (placement and flag name differ per tool).
+    args, verbose_in_tail = _split_verbose(args)
+    verbose = ctx.obj.get("verbose", False) or verbose_in_tail
     full = (*head, *args)
     hint = _ensure_config(full)
     if hint is not None:
@@ -880,7 +958,7 @@ def _make_passthrough(name: str, head: tuple[str, ...]):
     from hugr.commands.passthrough import run
     ctx.exit(run(
       list(full),
-      verbose=ctx.obj.get("verbose", False),
+      verbose=verbose,
       top_level_json=ctx.obj.get("json", False),
       extra_env=_yaams_config_env(full) or None,
     ))

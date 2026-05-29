@@ -23,7 +23,7 @@ def _stub_config(tmp_path: Path, monkeypatch) -> None:
 def test_api_schedule_builds_find_time_argv(monkeypatch):
   captured: dict[str, list[str]] = {}
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     captured["args"] = list(args)
     return 0, json.dumps({"slots": [{"date": "2026-05-26", "start": "09:00", "end": "09:15"}]}).encode()
 
@@ -43,7 +43,7 @@ def test_api_schedule_builds_find_time_argv(monkeypatch):
 
 
 def test_api_schedule_returns_empty_slots_on_failure(monkeypatch):
-  monkeypatch.setattr(sched_mod, "_call", lambda args: (2, b'{"ok":false}'))
+  monkeypatch.setattr(sched_mod, "_call", lambda args, **k: (2, b'{"ok":false}'))
   doc = api.schedule("X", who=["a@x.com"])
   assert doc["ok"] is False
   assert doc["slots"] == []

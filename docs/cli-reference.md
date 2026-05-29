@@ -13,7 +13,7 @@ Common flags accepted on most verbs:
 | `--json` | Machine mode (JSON document or envelope on stdout). |
 | `--pretty` | Human rendering. Default for terminals. |
 | `--yes` | Skip the interactive confirmation prompt on mutating verbs. |
-| `--verbose` / `-v` | Dump captured stderr from subprocess failures. |
+| `-v` / `--verbose` / `--debug` | Forward verbose mode to the underlying tool and stream its diagnostics (redacted). Accepted before *or* after the verb. |
 
 Exit codes follow [CONVENTIONS.md](../CONVENTIONS.md):
 `0` ok, `1` user error, `2` transient, `3` auth, `4` not found,
@@ -316,8 +316,16 @@ hugr sync pull
 hugr --version
 hugr --doctor       # alias for `hugr doctor`
 hugr --json ...     # top-level machine-mode hint
-hugr -v ...         # verbose stderr dumps on subprocess failure
+hugr -v ingest      # forward verbose to the child + stream its diagnostics
+hugr ingest -v      # same — the flag is also accepted after the verb
+hugr ingest --debug # --verbose / --debug are aliases
 ```
+
+Verbose forwarding is per-tool: owa-* (`mail`/`cal`/`graph`/`people`/
+`schedule`/`drive`) get a `<TOOL>_DEBUG=1` env var, `yaams ingest`
+gets `-v`, and `ledger loops`/`notes` get `--verbose`. The child's
+diagnostic stderr is streamed back through hugr's redactor. Verbs with
+no upstream verbose mechanism (`auth`, `query`) are an explicit no-op.
 
 ## Environment variables
 

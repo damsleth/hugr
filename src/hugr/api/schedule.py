@@ -54,6 +54,7 @@ def schedule(
     date: str | None = None,
     week: str | None = None,
     year: str | None = None,
+    verbose: bool = False,
 ) -> dict[str, Any]:
     """Find candidate slots for *intent* using ``owa-sched find-time``.
 
@@ -72,7 +73,7 @@ def schedule(
     if year is not None:
         args.extend(["--year", year])
 
-    rc, raw = _call(args)
+    rc, raw = _call(args, verbose=verbose)
     decoded = _decode(raw)
     ok = rc == 0 and not (isinstance(decoded, dict) and decoded.get("ok") is False)
     slots = _slots_from(decoded) if ok else []
@@ -109,6 +110,7 @@ def schedule_commit(
     location: str | None = None,
     body: str | None = None,
     category: str | None = None,
+    verbose: bool = False,
 ) -> dict[str, Any]:
     """Create the calendar event from a proposal *slot*.
 
@@ -124,4 +126,5 @@ def schedule_commit(
         location=location,
         body=body,
         category=category,
+        verbose=verbose,
     )

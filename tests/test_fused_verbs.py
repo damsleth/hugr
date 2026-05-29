@@ -13,7 +13,7 @@ from hugr.cli import cli
 def test_api_ask_fuses_yaams_calendar_and_mail(monkeypatch):
   calls: list[list[str]] = []
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     calls.append(list(args))
     return 0, json.dumps({"tool": args[0], "items": [{"id": "1"}]}).encode()
 
@@ -33,7 +33,7 @@ def test_api_ask_fuses_yaams_calendar_and_mail(monkeypatch):
 def test_api_find_routes_person_to_people_find(monkeypatch):
   captured: dict[str, list[str]] = {}
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     captured["args"] = list(args)
     return 0, b'{"people":[]}'
 
@@ -48,7 +48,7 @@ def test_api_find_routes_person_to_people_find(monkeypatch):
 def test_api_inbox_queries_four_sources(monkeypatch):
   calls: list[list[str]] = []
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     calls.append(list(args))
     return 0, b"[]"
 
@@ -67,7 +67,7 @@ def test_api_inbox_queries_four_sources(monkeypatch):
 def test_api_remember_returns_action_envelope(monkeypatch):
   captured: dict[str, list[str]] = {}
 
-  def fake_call(args):
+  def fake_call(args, **kwargs):
     captured["args"] = list(args)
     return 0, b'{"ok":true}'
 

@@ -24,13 +24,14 @@ from typing import Sequence
 
 from hugr.conventions import redact
 from hugr.failure import log_path, one_line_summary, parse_stdout, write_error_log
-from hugr.router import lookup
+from hugr.router import lookup, verbose_overlay
 
 
 def _stream_subprocess(
   argv: Sequence[str],
   *,
   extra_env: dict[str, str] | None = None,
+  echo_stderr: bool = False,
 ) -> tuple[int, str, str]:
   """Run subprocess; forward stdout lines as they arrive; capture stderr.
 
@@ -42,6 +43,12 @@ def _stream_subprocess(
   hugr is still pumping stdout. Without this, a child that writes
   more than ~64KB to stderr before closing stdout will block
   forever.
+
+  When ``echo_stderr`` is set (verbose mode), each captured stderr
+  chunk is *also* forwarded to hugr's stderr live - redacted, per the
+  CONVENTIONS.md no-secrets-to-stderr rule - so the user sees the
+  child's diagnostics under the hood as they happen. It is still
+  captured for the error log either way.
   """
   env = os.environ.copy()
   if extra_env:
@@ -64,6 +71,9 @@ def _stream_subprocess(
       return
     for chunk in proc.stderr:
       stderr_chunks.append(chunk)
+      if echo_stderr:
+        sys.stderr.write(redact(chunk))
+        sys.stderr.flush()
 
   drain_thread = threading.Thread(target=_drain_stderr, daemon=True)
   drain_thread.start()
@@ -120,6 +130,18 @@ def run(
   mapping, rewritten = resolved
   argv = [mapping.binary, *rewritten]
 
+  # Forward the user's -v/--verbose/--debug intent to the child so it
+  # surfaces what it's doing under the hood. Mechanism is per-row: an
+  # env var (position-independent), a flag (gated to subcommands that
+  # accept it), or nothing. See router.Mapping for the rationale.
+  if verbose:
+    verbose_env, verbose_argv = verbose_overlay(mapping)
+    if verbose_env:
+      extra_env = {**(extra_env or {}), **verbose_env}
+    for flag in verbose_argv:
+      if flag not in argv:
+        argv.append(flag)
+
   if mapping.interactive:
     if top_level_json:
       verb_str = " ".join(verb_args)
@@ -136,7 +158,9 @@ def run(
   if mapping.json_policy == "inject" and "--json" not in argv:
     argv.append("--json")
 
-  rc, stdout_text, stderr_text = _stream_subprocess(argv, extra_env=extra_env)
+  rc, stdout_text, stderr_text = _stream_subprocess(
+    argv, extra_env=extra_env, echo_stderr=verbose,
+  )
 
   envelope = parse_stdout(stdout_text)
   # rc == 2 with no parseable envelope means the child rejected our argv
@@ -173,10 +197,8 @@ def run(
       sys.stderr.write(
         f"x {mapping.binary}: exit {rc}\n    Logs: {log}\n"
       )
-    if verbose and stderr_text:
-      sys.stderr.write("--- captured stderr (redacted) ---\n")
-      sys.stderr.write(redact(stderr_text))
-      if not stderr_text.endswith("\n"):
-        sys.stderr.write("\n")
+    # In verbose mode the child's stderr was already streamed live
+    # (redacted) by _stream_subprocess, so there is nothing left to
+    # dump here - the diagnostics appeared as they happened.
 
   return rc

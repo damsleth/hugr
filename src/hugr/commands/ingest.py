@@ -93,14 +93,18 @@ def ingest_cmd(
   Use --raw to bypass the orchestrator and get a pure yaams passthrough.
   """
   # Import here to avoid circular imports at module load time.
-  from hugr.cli import _ensure_config, _yaams_config_env
+  from hugr.cli import _ensure_config, _split_verbose, _yaams_config_env
 
   hint = _ensure_config(("ingest",))
   if hint is not None:
     ctx.exit(hint)
 
   as_json_eff = as_json or ctx.obj.get("json", False)
-  verbose = ctx.obj.get("verbose", False)
+  # `hugr ingest --verbose` lands the flag in `extra` (the top-level
+  # group only sees it as `hugr -v ingest`). Strip it here and forward
+  # the intent through the router's yaams `-v` strategy instead.
+  extra, verbose_in_tail = _split_verbose(extra)
+  verbose = ctx.obj.get("verbose", False) or verbose_in_tail
 
   if raw:
     # Bypass the orchestrator: forward straight to yaams ingest via
@@ -127,6 +131,7 @@ def ingest_cmd(
     promote=promote,
     yes=yes,
     raw=False,
+    verbose=verbose,
     extra_args=list(extra),
   )
 

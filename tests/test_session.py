@@ -67,7 +67,7 @@ def test_recall_writes_last_recall_when_session_active(tmp_path: Path, monkeypat
 
   # Stub _call inside fused
   from hugr.api import fused
-  monkeypatch.setattr(fused, "_call", lambda args: (0, b'{"items":[]}'))
+  monkeypatch.setattr(fused, "_call", lambda args, **k: (0, b'{"items":[]}'))
 
   doc = fused.recall("hello", live=False)
   assert doc["query"] == "hello"
@@ -89,7 +89,7 @@ def test_inbox_writes_working_set_when_session_active(tmp_path: Path, monkeypatc
     b'{"loops":[{"id":"l1"}]}',      # ledger loops
     b'[]',                            # yaams promote list
   ])
-  monkeypatch.setattr(fused, "_call", lambda args: (0, next(responses)))
+  monkeypatch.setattr(fused, "_call", lambda args, **k: (0, next(responses)))
 
   fused.inbox()
   items = session.read_working_set(meta.id)
@@ -101,7 +101,7 @@ def test_recall_skips_session_write_when_unset(tmp_path: Path, monkeypatch):
   _isolate(tmp_path, monkeypatch)
   # No HUGR_SESSION
   from hugr.api import fused
-  monkeypatch.setattr(fused, "_call", lambda args: (0, b"[]"))
+  monkeypatch.setattr(fused, "_call", lambda args, **k: (0, b"[]"))
   fused.recall("hi", live=False)
   # Nothing written
   assert not session.sessions_root().is_dir() or not any(session.sessions_root().iterdir())

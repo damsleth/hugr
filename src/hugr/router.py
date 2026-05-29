@@ -47,6 +47,25 @@ class Mapping:
   # See JsonPolicy above. Default "inject" preserves the historical
   # passthrough behavior for yaams/ledger.
   json_policy: JsonPolicy = "inject"
+  # --- verbose forwarding ---------------------------------------------
+  # When the user runs hugr with -v/--verbose/--debug, hugr forwards
+  # that intent to the child so you can see what's happening under the
+  # hood. The mechanism differs per tool, so it is declared per row:
+  #
+  # - verbose_env: an (NAME, VALUE) env var the child honors. This is
+  #   position-independent and works for every subcommand, so it is the
+  #   preferred mechanism where the tool supports one (every owa-* tool
+  #   reads <TOOL>_DEBUG=1).
+  # - verbose_flag: a flag appended to the rewritten argv. Used only for
+  #   tools with no debug env var (yaams -v, ledger --verbose). MUST only
+  #   be set on rows whose underlying subcommand actually accepts the
+  #   flag — appending it to a subcommand that rejects unknown options
+  #   would turn a normal run into a usage error.
+  #
+  # A row may set neither (no verbose mechanism exists upstream, e.g.
+  # owa-piggy), one, or both.
+  verbose_env: tuple[str, str] | None = None
+  verbose_flag: str | None = None
 
 
 def _passthrough(extra: Sequence[str] = ()) -> Callable[[Sequence[str]], list[str]]:
@@ -82,6 +101,7 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     binary="yaams",
     rewrite=_passthrough(["ingest"]),
     description="Ingest all configured sources into YAAMS",
+    verbose_flag="-v",  # yaams ingest streams DEBUG logs to stderr with -v
   ),
   ("sources",): Mapping(
     binary="yaams",
@@ -120,11 +140,13 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     binary="ledger",
     rewrite=_passthrough(["loops"]),
     description="List open loops from the cognitive ledger",
+    verbose_flag="--verbose",
   ),
   ("notes",): Mapping(
     binary="ledger",
     rewrite=_passthrough(["notes"]),
     description="List ledger notes by type (requires --type)",
+    verbose_flag="--verbose",
   ),
   ("query",): Mapping(
     binary="yaams",
@@ -167,11 +189,13 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     binary="ledger",
     rewrite=_passthrough(["loops"]),
     description="List open loops from the ledger",
+    verbose_flag="--verbose",
   ),
   ("ledger", "notes"): Mapping(
     binary="ledger",
     rewrite=_passthrough(["notes"]),
     description="List ledger notes by type",
+    verbose_flag="--verbose",
   ),
   ("ledger", "sleep"): Mapping(
     binary="ledger",
@@ -270,36 +294,42 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     rewrite=_passthrough([]),
     description="Outlook mail (messages, send, reply, search, ...)",
     json_policy="native",
+    verbose_env=("MAIL_DEBUG", "1"),
   ),
   ("cal",): Mapping(
     binary="owa-cal",
     rewrite=_passthrough([]),
     description="Outlook calendar (events, create, update, ...)",
     json_policy="native",
+    verbose_env=("CAL_DEBUG", "1"),
   ),
   ("graph",): Mapping(
     binary="owa-graph",
     rewrite=_passthrough([]),
     description="Generic Microsoft Graph CLI (GET/POST/PATCH/DELETE)",
     json_policy="native",
+    verbose_env=("GRAPH_DEBUG", "1"),
   ),
   ("people",): Mapping(
     binary="owa-people",
     rewrite=_passthrough([]),
     description="People / directory lookup",
     json_policy="native",
+    verbose_env=("PEOPLE_DEBUG", "1"),
   ),
   ("schedule",): Mapping(
     binary="owa-sched",
     rewrite=_passthrough([]),
     description="Free/busy and find-time scheduling helpers",
     json_policy="native",
+    verbose_env=("SCHED_DEBUG", "1"),
   ),
   ("drive",): Mapping(
     binary="owa-drive",
     rewrite=_passthrough([]),
     description="OneDrive (ls, get, put, rm, ...)",
     json_policy="native",
+    verbose_env=("DRIVE_DEBUG", "1"),
   ),
 }
 
@@ -322,6 +352,26 @@ def lookup(args: Sequence[str]) -> tuple[Mapping, list[str]] | None:
       rewritten = mapping.rewrite(tail)
       return mapping, rewritten
   return None
+
+
+def verbose_overlay(mapping: Mapping) -> tuple[dict[str, str], list[str]]:
+  """Translate a row's verbose strategy into concrete forwarding.
+
+  Returns ``(env_overlay, extra_argv)`` to apply when the user asked
+  for verbose output:
+
+  - ``env_overlay`` merges into the child's environment (preferred:
+    position-independent, every subcommand honors it).
+  - ``extra_argv`` is appended to the child argv (for tools with no
+    debug env var, gated per row to subcommands that accept the flag).
+
+  Both may be empty when the row declares no verbose mechanism.
+  """
+  env: dict[str, str] = {}
+  if mapping.verbose_env:
+    env[mapping.verbose_env[0]] = mapping.verbose_env[1]
+  flag = [mapping.verbose_flag] if mapping.verbose_flag else []
+  return env, flag
 
 
 def verbs() -> list[tuple[str, str, str]]:

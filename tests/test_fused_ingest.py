@@ -44,7 +44,7 @@ def _make_call_spy(responses: list[tuple[int, bytes]]):
   call_log: list[list[str]] = []
   responses_queue = list(responses)
 
-  def fake_call(args: list[str]) -> tuple[int, bytes]:
+  def fake_call(args: list[str], **kwargs) -> tuple[int, bytes]:
     call_log.append(list(args))
     if responses_queue:
       return responses_queue.pop(0)
@@ -195,7 +195,7 @@ def test_raw_returns_sentinel_envelope_without_calling_backends(monkeypatch):
   """--raw: orchestrator short-circuits; no _call made."""
   calls: list[list[str]] = []
 
-  def fake_call(args: list[str]) -> tuple[int, bytes]:
+  def fake_call(args: list[str], **kwargs) -> tuple[int, bytes]:
     calls.append(list(args))
     return 0, b"{}"
 
@@ -223,7 +223,7 @@ def test_extra_args_forwarded_to_ingest(monkeypatch):
 
 def test_envelope_has_required_keys(monkeypatch):
   """Envelope always contains the documented top-level keys."""
-  monkeypatch.setattr(ingest_module, "_call", lambda _: (0, b"{}"))
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: (0, b"{}"))
   doc = fused_ingest()
   for key in ("tool", "command", "ok", "exit_code", "dry_run", "raw",
               "ingested", "candidates_generated", "promoted", "warnings", "error"):
@@ -236,7 +236,7 @@ def test_envelope_has_required_keys(monkeypatch):
 
 def test_cli_ingest_json_output_on_success(monkeypatch):
   """hugr ingest --json returns a parseable JSON envelope on success."""
-  monkeypatch.setattr(ingest_module, "_call", lambda _: (
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: (
     0, json.dumps({"ok": True, "ingested": 1}).encode()
   ))
   result = CliRunner().invoke(cli, ["ingest", "--json"])
@@ -249,7 +249,7 @@ def test_cli_ingest_json_output_on_success(monkeypatch):
 
 def test_cli_ingest_pretty_output_on_success(monkeypatch):
   """hugr ingest (no --json) prints human-readable output."""
-  monkeypatch.setattr(ingest_module, "_call", lambda _: (
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: (
     0, json.dumps({"ok": True, "ingested": 3}).encode()
   ))
   result = CliRunner().invoke(cli, ["ingest"])
@@ -260,7 +260,7 @@ def test_cli_ingest_pretty_output_on_success(monkeypatch):
 
 def test_cli_ingest_dry_run_flag_accepted(monkeypatch):
   """hugr ingest --dry-run exits 0 and mentions dry-run."""
-  monkeypatch.setattr(ingest_module, "_call", lambda _: (
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: (
     0, json.dumps({"ok": True, "ingested": 0}).encode()
   ))
   result = CliRunner().invoke(cli, ["ingest", "--dry-run"])
@@ -275,7 +275,7 @@ def test_cli_ingest_exits_2_on_partial_failure(monkeypatch):
     (1, json.dumps({"ok": False, "error": {"message": "sweep error"}}).encode()),
   ]
   call_iter = iter(responses)
-  monkeypatch.setattr(ingest_module, "_call", lambda _: next(call_iter))
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: next(call_iter))
 
   result = CliRunner().invoke(cli, ["ingest", "--json"])
   assert result.exit_code == 2, result.output
@@ -285,7 +285,7 @@ def test_cli_ingest_exits_2_on_partial_failure(monkeypatch):
 
 def test_cli_ingest_exits_nonzero_on_yaams_failure(monkeypatch):
   """hugr ingest propagates yaams exit code."""
-  monkeypatch.setattr(ingest_module, "_call", lambda _: (
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: (
     1, json.dumps({"ok": False, "error": {"message": "fail"}}).encode()
   ))
   result = CliRunner().invoke(cli, ["ingest", "--json"])
@@ -343,7 +343,7 @@ def test_cli_ingest_promote_preview_message(monkeypatch):
     (0, json.dumps({"ok": True, "candidates": 5}).encode()),
   ]
   call_iter = iter(responses)
-  monkeypatch.setattr(ingest_module, "_call", lambda _: next(call_iter))
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: next(call_iter))
 
   result = CliRunner().invoke(cli, ["ingest", "--promote"])
   assert result.exit_code == 0, result.output
@@ -361,7 +361,7 @@ def test_cli_ingest_promote_yes_does_not_claim_a_write(monkeypatch):
     # No third call: nothing to write to.
   ]
   call_iter = iter(responses)
-  monkeypatch.setattr(ingest_module, "_call", lambda _: next(call_iter))
+  monkeypatch.setattr(ingest_module, "_call", lambda _a, **_k: next(call_iter))
 
   result = CliRunner().invoke(cli, ["ingest", "--promote", "--yes"])
   assert result.exit_code == 0, result.output
