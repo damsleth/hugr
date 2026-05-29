@@ -139,7 +139,12 @@ def run(
   rc, stdout_text, stderr_text = _stream_subprocess(argv, extra_env=extra_env)
 
   envelope = parse_stdout(stdout_text)
-  crashed = envelope is None and rc != 0
+  # rc == 2 with no parseable envelope means the child rejected our argv
+  # (argparse EXIT_USAGE). This is a caller error, not a crash. CONVENTIONS.md
+  # reserves exit 2 for EXIT_USAGE; honour that by surfacing the tool's own
+  # usage text rather than "tool crashed - file bug".
+  usage_error = envelope is None and rc == 2
+  crashed = envelope is None and rc != 0 and not usage_error
   failed = crashed or rc != 0 or (envelope is not None and envelope.get("ok") is False)
 
   if failed:
@@ -155,6 +160,11 @@ def run(
       hint_text = err.get("hint")
       hint = f"\n    Fix:  {redact(hint_text)}" if hint_text else ""
       sys.stderr.write(f"x {mapping.binary}: {msg}{hint}\n    Logs: {log}\n")
+    elif usage_error:
+      # The child rejected the argv (missing/invalid args). Show its own
+      # usage text — redacted — rather than calling it a crash.
+      msg = redact(stderr_text.strip()) or "usage error"
+      sys.stderr.write(f"x {mapping.binary}: {msg}\n    Logs: {log}\n")
     elif crashed:
       sys.stderr.write(
         f"x {mapping.binary}: tool crashed - file bug\n    Logs: {log}\n"

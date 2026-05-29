@@ -90,6 +90,42 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     interactive=True,
     json_policy="none",
   ),
+  ("stats",): Mapping(
+    binary="yaams",
+    rewrite=_passthrough(["stats"]),
+    description="Show YAAMS store stats (counts, sizes, last ingest)",
+  ),
+  ("feedback",): Mapping(
+    binary="yaams",
+    rewrite=_passthrough(["feedback"]),
+    description="Log retrieval feedback for a query (hit/miss/correction/...)",
+  ),
+  ("review",): Mapping(
+    binary="yaams",
+    rewrite=_passthrough(["review"]),
+    description="Walk the unjudged-query queue (interactive TUI)",
+    interactive=True,
+    json_policy="none",
+  ),
+  # Top-level `briefing` is ledger-backed but surfaced flat: it is a
+  # daily ritual verb in the README, not a ledger-internal one.
+  ("briefing",): Mapping(
+    binary="ledger",
+    rewrite=_passthrough(["briefing"]),
+    description="Daily or weekly briefing from the cognitive ledger",
+    json_policy="none",
+  ),
+  # Daily ritual verbs, surfaced flat (ledger-backed, like briefing).
+  ("loops",): Mapping(
+    binary="ledger",
+    rewrite=_passthrough(["loops"]),
+    description="List open loops from the cognitive ledger",
+  ),
+  ("notes",): Mapping(
+    binary="ledger",
+    rewrite=_passthrough(["notes"]),
+    description="List ledger notes by type (requires --type)",
+  ),
   ("query",): Mapping(
     binary="yaams",
     rewrite=_query_rewrite,
@@ -136,6 +172,18 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     binary="ledger",
     rewrite=_passthrough(["notes"]),
     description="List ledger notes by type",
+  ),
+  ("ledger", "sleep"): Mapping(
+    binary="ledger",
+    rewrite=_passthrough(["sleep"]),
+    description="Electric Sheep maintenance (sleep, lint, index, status, sync)",
+    json_policy="none",
+  ),
+  ("ledger", "links"): Mapping(
+    binary="ledger",
+    rewrite=_passthrough(["links"]),
+    description="Show ledger link graph (or links for a single note)",
+    json_policy="none",
   ),
   # Bare `ledger context` exposes --format boot|identity|json (not
   # --json) at the cognitive-ledger layer. We translate to
@@ -187,6 +235,30 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     binary="owa-piggy",
     rewrite=_passthrough(["profiles"]),
     description="List / manage M365 profiles",
+    json_policy="native",
+  ),
+  ("auth", "token"): Mapping(
+    binary="owa-piggy",
+    rewrite=_passthrough(["token"]),
+    description="Print an M365 access token (audience-aware)",
+    json_policy="native",
+  ),
+  ("auth", "remaining"): Mapping(
+    binary="owa-piggy",
+    rewrite=_passthrough(["remaining"]),
+    description="Minutes left on the current access token",
+    json_policy="native",
+  ),
+  ("auth", "debug"): Mapping(
+    binary="owa-piggy",
+    rewrite=_passthrough(["debug"]),
+    description="Full owa-piggy diagnostics (token, profile, sidecar)",
+    json_policy="native",
+  ),
+  ("auth", "decode"): Mapping(
+    binary="owa-piggy",
+    rewrite=_passthrough(["decode"]),
+    description="Decode JWT header + payload of the current token",
     json_policy="native",
   ),
   # --- owa-tools (M365 read/write) ------------------------------------

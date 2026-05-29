@@ -33,6 +33,7 @@ from hugr.api.fused import recall as recall
 from hugr.api.fused import find as find
 from hugr.api.fused import inbox as inbox
 from hugr.api.fused import remember as remember
+from hugr.api.ingest import fused_ingest as fused_ingest
 from hugr.api.send import send_mail as send_mail
 from hugr.api.send import send_invite as send_invite
 from hugr.api.schedule import schedule as schedule
@@ -210,6 +211,7 @@ __all__ = [
     "find",
     "inbox",
     "remember",
+    "fused_ingest",
     "send_mail",
     "send_invite",
     "schedule",

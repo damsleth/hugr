@@ -43,6 +43,9 @@ all = ["hugr-cli[tui,web,server]"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+  "live_tools: marks tests that shell out to real suite binaries (skip with -m 'not live_tools')",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

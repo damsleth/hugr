@@ -6,8 +6,11 @@ Subcommands:
 - doctor  - aggregate health check across the suite
 - init    - first-run wizard (interactive; rejects --json)
 - query   - passthrough to `yaams query` (with --tier aliasing)
-- ingest  - passthrough to `yaams ingest`
+- ingest  - fused orchestrator: yaams ingest + promote generate sweep (--raw bypasses)
 - promote - passthrough to `yaams promote <sub>`
+- briefing - passthrough to `ledger briefing`
+- loops   - passthrough to `ledger loops`
+- notes   - passthrough to `ledger notes`
 - ledger  - passthrough to `ledger <sub>`
 - auth    - passthrough to `owa-piggy <sub>`
 - mail    - passthrough to `owa-mail`
@@ -65,6 +68,9 @@ _VERBS_NEEDING_CONFIG = {
   ("query",),
   ("ingest",),
   ("sources",),
+  ("stats",),
+  ("feedback",),
+  ("review",),
   ("promote", "review"),
   ("promote", "generate"),
 }
@@ -92,6 +98,9 @@ _BYPASS_ENV_BY_VERB: dict[tuple[str, ...], tuple[str, ...]] = {
   ("query",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("ingest",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("sources",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
+  ("stats",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
+  ("feedback",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
+  ("review",): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("promote", "review"): ("YAAMS_CONFIG", "HUGR_CONFIG"),
   ("promote", "generate"): ("YAAMS_CONFIG", "HUGR_CONFIG"),
 }
@@ -859,6 +868,7 @@ def _make_passthrough(name: str, head: tuple[str, ...]):
   @cli.command(
     name,
     context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
+    add_help_option=False,        # forward --help/-h to the underlying tool
   )
   @click.argument("args", nargs=-1, type=click.UNPROCESSED)
   @click.pass_context
@@ -881,8 +891,19 @@ def _make_passthrough(name: str, head: tuple[str, ...]):
 
 # Translation-table-driven Click commands.
 query_cmd = _make_passthrough("query", ("query",))
-ingest_cmd = _make_passthrough("ingest", ("ingest",))
+
+# ingest is a fused orchestrator (Tier 1 + Tier 2 sweep).
+# The ("ingest",) row stays in router.py so `hugr ingest --raw`
+# can use the passthrough escape hatch.
+from hugr.commands.ingest import ingest_cmd as ingest_cmd  # noqa: E402
+cli.add_command(ingest_cmd)
 sources_cmd = _make_passthrough("sources", ("sources",))
+stats_cmd = _make_passthrough("stats", ("stats",))
+feedback_cmd = _make_passthrough("feedback", ("feedback",))
+review_cmd = _make_passthrough("review", ("review",))
+briefing_cmd = _make_passthrough("briefing", ("briefing",))
+loops_cmd = _make_passthrough("loops", ("loops",))
+notes_cmd = _make_passthrough("notes", ("notes",))
 promote_cmd = _make_passthrough("promote", ("promote",))
 ledger_cmd = _make_passthrough("ledger", ("ledger",))
 auth_cmd = _make_passthrough("auth", ("auth",))

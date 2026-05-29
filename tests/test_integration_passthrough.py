@@ -156,9 +156,14 @@ def _yaams_ingest_dry_run(cfg: Path) -> dict | None:
 
 
 def _hugr_ingest_dry_run(cfg: Path) -> dict | None:
+  # `hugr ingest` is now a fused orchestrator (yaams ingest + promote
+  # sweep) whose envelope intentionally differs from raw yaams. The
+  # direct-CLI/hugr passthrough parity invariant applies to the
+  # `--raw` escape hatch, which bypasses the orchestrator and is
+  # byte-identical to `yaams ingest`. Test that.
   hugr = shutil.which("hugr") or (Path(sys.executable).parent / "hugr")
   result = subprocess.run(
-    [str(hugr), "ingest", "--config", str(cfg), "--dry-run", "--json"],
+    [str(hugr), "ingest", "--raw", "--config", str(cfg), "--dry-run", "--json"],
     capture_output=True, text=True,
   )
   return _parse_final_json(result.stdout)

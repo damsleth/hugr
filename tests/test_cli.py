@@ -161,3 +161,40 @@ def test_query_unknown_verb_handled():
 def test_ingest_unknown_verb_handled():
   result = CliRunner().invoke(cli, ["ingest", "--dry-run"])
   assert isinstance(result.exit_code, int)
+
+
+# --- Piece B: --help forwarding on passthrough verbs ----------------------
+# See .plans/router-passthrough-hardening.md §Piece B.
+
+def test_passthrough_help_forwards_to_tool(monkeypatch):
+  """hugr ledger links --help must reach the underlying tool, not show the
+  wrapper's near-empty 'Usage: hugr ledger' banner."""
+  from hugr.commands import passthrough
+
+  captured: dict[str, list[str]] = {"argv": []}
+
+  def _fake_stream(argv, **_kwargs):
+    captured["argv"] = list(argv)
+    return 0, '{"tool":"ledger","ok":true}\n', ""
+
+  monkeypatch.setattr(passthrough, "_stream_subprocess", _fake_stream)
+
+  result = CliRunner().invoke(cli, ["ledger", "links", "--help"])
+
+  # --help must appear in the argv forwarded to the child
+  assert "--help" in captured["argv"], f"--help not forwarded; argv={captured['argv']}"
+  # The wrapper's 'Usage: hugr ledger' banner must NOT appear
+  assert "Usage: hugr ledger" not in (result.output or "")
+
+
+def test_top_level_help_still_works():
+  """hugr --help and hugr recall --help must still show their own Click help."""
+  result_top = CliRunner().invoke(cli, ["--help"])
+  assert result_top.exit_code == 0
+  assert "hugr" in result_top.output.lower()
+
+  # `hugr recall` is a real Click command (not a _make_passthrough product);
+  # its --help should come from Click itself.
+  result_recall = CliRunner().invoke(cli, ["recall", "--help"])
+  assert result_recall.exit_code == 0
+  assert "Usage:" in result_recall.output

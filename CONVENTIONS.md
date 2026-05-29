@@ -263,6 +263,19 @@ commands are data-class unless explicitly documented as action-class:
   selected backing tool.
 - `hugr inbox` returns `sources[]` for unread mail, today's calendar
   events, ledger loops, and YAAMS promotion candidates.
+- `hugr ingest` is a fused action-class orchestrator: it runs `yaams
+  ingest` (Tier 1) then sweeps promotion candidates via `yaams promote
+  generate` (Tier 2), returning `{ingested, candidates_generated,
+  promoted, promotion_pending, warnings}`. Its envelope therefore
+  differs from raw `yaams ingest`. Exit codes: 0 (full success), the
+  propagated yaams code on ingest failure, 2 (partial: ingest ok but
+  the sweep failed). `promoted` is reserved and currently always
+  `null` — there is no non-interactive promote-commit verb upstream,
+  so `--promote`/`--promote --yes` report candidates as
+  `promotion_pending` and direct the user to `hugr promote review`
+  rather than auto-writing. **`hugr ingest --raw` bypasses the
+  orchestrator and is byte-identical to `yaams ingest`** — that is the
+  variant the direct-CLI/hugr passthrough parity invariant covers.
 - `hugr remember "<fact>"` is action-class and returns an action
   envelope with `ok`, `exit_code`, `error`, and the child ledger result.
 - `hugr init --quick` is action-class and returns the standard action
