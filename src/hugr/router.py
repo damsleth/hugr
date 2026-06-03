@@ -331,6 +331,13 @@ TABLE: dict[tuple[str, ...], Mapping] = {
     json_policy="native",
     verbose_env=("DRIVE_DEBUG", "1"),
   ),
+  ("vids",): Mapping(
+    binary="owa-vids",
+    rewrite=_passthrough([]),
+    description="Download Teams / OneDrive meeting-recap DASH streams to MP4",
+    json_policy="native",
+    verbose_env=("VIDS_DEBUG", "1"),
+  ),
 }
 
 

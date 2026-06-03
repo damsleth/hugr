@@ -104,6 +104,14 @@ def test_drive_routes_to_owa_drive():
   assert rewritten == ["ls"]
 
 
+def test_vids_routes_to_owa_vids():
+  mapping, rewritten = lookup(["vids", "info", "--manifest-url", "https://x"])
+  assert mapping.binary == "owa-vids"
+  assert rewritten == ["info", "--manifest-url", "https://x"]
+  assert mapping.json_policy == "native"
+  assert mapping.verbose_env == ("VIDS_DEBUG", "1")
+
+
 # --- ledger context (Plan 03 / review F6) ----------------------------------
 
 def test_bare_ledger_context_emits_format_json():
@@ -218,6 +226,7 @@ def test_notes_forwards_type_arg():
 #   ("mail",)                   – test_mail_routes_to_owa_mail
 #   ("promote", "review")       – test_promote_review_routes_to_yaams
 #   ("query",)                  – test_lookup_query_routes_to_yaams
+#   ("vids",)                   – test_vids_routes_to_owa_vids
 #
 # Keys covered by the parametrize block in this file:
 #   ("auth", "debug"), ("auth", "decode"), ("auth", "remaining"),
@@ -267,6 +276,7 @@ COVERED: set[tuple[str, ...]] = {
   ("mail",),
   ("people",),
   ("schedule",),
+  ("vids",),
 }
 
 
